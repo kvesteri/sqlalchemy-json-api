@@ -187,7 +187,7 @@ def composite_pk_cls(base):
 
 @pytest.fixture(scope='class')
 def dns():
-    return 'postgres://postgres@localhost/sqlalchemy_utils_test'
+    return 'postgres://postgres@localhost/sqlalchemy_json_api_test'
 
 
 @pytest.yield_fixture(scope='class')

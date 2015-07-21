@@ -1,0 +1,24 @@
+addons:
+  postgresql: "9.4"
+
+before_script:
+  - psql -c 'create database sqlalchemy_json_api_test;' -U postgres
+
+language: python
+python:
+  - 2.6
+  - 2.7
+  - 3.3
+  - 3.4
+
+env:
+  - EXTRAS=test
+  - EXTRAS=test_all
+
+install:
+  - pip install -e .[$EXTRAS]
+
+script:
+  - isort --recursive --diff sqlalchemy_json_api.py test.py && isort --recursive --check-only sqlalchemy_json_api.py test.py
+  - flake8 sqlalchemy_json_api.py test.py
+  - py.test
