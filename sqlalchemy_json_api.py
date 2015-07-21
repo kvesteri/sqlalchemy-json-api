@@ -61,7 +61,7 @@ def subpaths(path):
 
 
 def s(value):
-    return sa.text("'{}'".format(value))
+    return sa.text("'{0}'".format(value))
 
 
 def get_descriptor_columns(model, descriptor):
@@ -320,7 +320,7 @@ class JSONMapping(object):
                     'Unknown field keys given. Could not find {0} {1} from '
                     'given model mapping.'.format(
                         'keys' if len(unknown_keys) > 1 else 'key',
-                        ','.join("'{}'".format(key) for key in unknown_keys)
+                        ','.join("'{0}'".format(key) for key in unknown_keys)
                     )
                 )
 
