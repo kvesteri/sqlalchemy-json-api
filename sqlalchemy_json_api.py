@@ -13,6 +13,9 @@ from sqlalchemy_utils.relationships import (
 )
 
 
+__version__ = '0.1'
+
+
 class JSONAPIException(Exception):
     pass
 

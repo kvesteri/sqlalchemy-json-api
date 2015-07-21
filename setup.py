@@ -14,7 +14,7 @@ PY3 = sys.version_info[0] == 3
 
 
 def get_version():
-    filename = os.path.join(HERE, 'infinity.py')
+    filename = os.path.join(HERE, 'sqlalchemy_json_api.py')
     with open(filename) as f:
         contents = f.read()
     pattern = r"^__version__ = '(.*?)'$"

@@ -1,3 +1,3 @@
 SQLAlchemy-JSON-API
 -------------------
-Fast SQLAlchemy query builder for returning JSON API responses
+Fast SQLAlchemy query builder for returning JSON API compatible results.
