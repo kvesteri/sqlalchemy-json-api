@@ -524,7 +524,6 @@ class TestQueryBuilder(object):
         query = json_api.select(article_cls, fields=fields)
         assert session.execute(query).scalar() == result
 
-
     @pytest.mark.parametrize(
         ('fields', 'result'),
         (

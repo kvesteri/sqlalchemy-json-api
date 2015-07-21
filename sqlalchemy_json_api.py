@@ -1,17 +1,14 @@
 import sqlalchemy as sa
-from sqlalchemy.orm.attributes import QueryableAttribute
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSON, JSONB
-from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.orm.attributes import InstrumentedAttribute, QueryableAttribute
 from sqlalchemy.sql.expression import union
-
 from sqlalchemy_utils.functions import get_mapper
 from sqlalchemy_utils.functions.orm import get_all_descriptors
 from sqlalchemy_utils.relationships import (
     path_to_relationships,
     select_correlated_expression
 )
-
 
 __version__ = '0.1'
 
@@ -162,7 +159,8 @@ class JSONMapping(object):
 
     def get_all_fields(self, from_obj):
         return [
-            field for field, descriptor in get_all_descriptors(from_obj).items()
+            field
+            for field, descriptor in get_all_descriptors(from_obj).items()
             if (
                 field != '__mapper__' and
                 not self.is_relationship_descriptor(descriptor) and
@@ -321,7 +319,7 @@ class JSONMapping(object):
                 raise UnknownFieldKey(
                     'Unknown field keys given. Could not find {0} {1} from '
                     'given model mapping.'.format(
-                        'keys' if len(unknown_keys) > 1 else 'key' ,
+                        'keys' if len(unknown_keys) > 1 else 'key',
                         ','.join("'{}'".format(key) for key in unknown_keys)
                     )
                 )
