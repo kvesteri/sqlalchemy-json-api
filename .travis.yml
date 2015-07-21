@@ -11,14 +11,10 @@ python:
   - 3.3
   - 3.4
 
-env:
-  - EXTRAS=test
-  - EXTRAS=test_all
-
 install:
-  - pip install -e .[$EXTRAS]
+  - pip install -e .[test]
 
 script:
   - isort --recursive --diff sqlalchemy_json_api.py test.py && isort --recursive --check-only sqlalchemy_json_api.py test.py
   - flake8 sqlalchemy_json_api.py test.py
-  - py.test
+  - py.test test.py
