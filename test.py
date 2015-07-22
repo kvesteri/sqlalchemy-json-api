@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy_json_api import (
     IdPropertyNotFound,
     InvalidField,
-    JSONMapping,
+    QueryBuilder,
     UnknownField,
     UnknownFieldKey,
     UnknownModel
@@ -299,14 +299,14 @@ def dataset(
 
 @pytest.fixture
 def json_api(model_mapping):
-    return JSONMapping(model_mapping)
+    return QueryBuilder(model_mapping)
 
 
 @pytest.mark.usefixtures('table_creator', 'dataset')
 class TestQueryBuilder(object):
     def test_throws_exception_for_unknown_fields_key(self, composite_pk_cls):
         with pytest.raises(IdPropertyNotFound) as e:
-            JSONMapping({'something': composite_pk_cls})
+            QueryBuilder({'something': composite_pk_cls})
         assert str(e.value) == (
             "Couldn't find 'id' property for model {0}.".format(
                 composite_pk_cls
@@ -327,7 +327,7 @@ class TestQueryBuilder(object):
 
     def test_throws_exception_for_unknown_model(self, user_cls, article_cls):
         with pytest.raises(UnknownModel) as e:
-            JSONMapping({'users': user_cls}).select(article_cls)
+            QueryBuilder({'users': user_cls}).select(article_cls)
         assert str(e.value) == (
             "Unknown model given. Could not find model {0} from given "
             "mapping.".format(

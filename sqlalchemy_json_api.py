@@ -88,7 +88,7 @@ def get_descriptor_columns(model, descriptor):
     )
 
 
-class JSONMapping(object):
+class QueryBuilder(object):
     def __init__(self, mapping):
         self.validate_mapping(mapping)
         self.mapping = mapping
