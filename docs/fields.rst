@@ -25,6 +25,7 @@ You can customize this behaviour by providing the ``fields`` parameter to :meth:
     #     }]
     # }
 
+
 If you only want to select id for given model you need to provide empty list for given model key.
 
 
@@ -39,3 +40,5 @@ If you only want to select id for given model you need to provide empty list for
     #         'type': 'articles',
     #     }]
     # }
+
+

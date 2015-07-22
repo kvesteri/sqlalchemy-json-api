@@ -26,19 +26,37 @@ from .utils import (
 )
 
 
-json_array = sa.cast(postgresql.array([]), postgresql.ARRAY(JSON))
+json_array = sa.cast(postgresql.array([], type_=JSON), postgresql.ARRAY(JSON))
 
 
 class QueryBuilder(object):
-    def __init__(self, mapping):
-        self.validate_mapping(mapping)
-        self.mapping = mapping
-        self.inversed = dict(
-            (value, key) for key, value in self.mapping.items()
-        ) if mapping else None
+    """
+    ::
 
-    def validate_mapping(self, mapping):
-        for model in mapping.values():
+        query_builder = QueryBuilder({
+            'articles': Article,
+            'users': User,
+            'comments': Comment
+        })
+
+
+    :param model_mapping:
+        A mapping with keys representing JSON API resource identifier type
+        names and values as SQLAlchemy models.
+
+        It is recommended to use lowercased hyphenized names for resource
+        identifier types. So for example model such as LeagueInvitiation
+        should have an equivalent key of 'league-invitation'.
+    """
+    def __init__(self, model_mapping):
+        self.validate_model_mapping(model_mapping)
+        self.model_mapping = model_mapping
+        self.inversed = dict(
+            (value, key) for key, value in self.model_mapping.items()
+        ) if model_mapping else None
+
+    def validate_model_mapping(self, model_mapping):
+        for model in model_mapping.values():
             if 'id' not in get_all_descriptors(model).keys():
                 raise IdPropertyNotFound(
                     "Couldn't find 'id' property for model {0}.".format(
@@ -250,12 +268,12 @@ class QueryBuilder(object):
         if model not in self.inversed:
             raise UnknownModel(
                 'Unknown model given. Could not find model %r from given '
-                'mapping.' % model
+                'model mapping.' % model
             )
 
     def validate_field_keys(self, fields):
         if fields:
-            unknown_keys = set(fields) - set(self.mapping.keys())
+            unknown_keys = set(fields) - set(self.model_mapping.keys())
             if unknown_keys:
                 raise UnknownFieldKey(
                     'Unknown field keys given. Could not find {0} {1} from '
@@ -267,6 +285,18 @@ class QueryBuilder(object):
 
     def select(self, model, fields=None, include=None, from_obj=None):
         """
+        ::
+
+            query = query_builder.select(
+                Article,
+                fields={'articles': ['name', 'author', 'comments']},
+                include=['author', 'comments.author'],
+                from_obj=session.query(Article).filter(
+                    Article.id.in_([1, 2, 3, 4])
+                )
+            )
+
+
         :param model:
             The root model to build the select query from.
         :param fields:
@@ -274,6 +304,28 @@ class QueryBuilder(object):
             lists of model descriptor names.
         :param include:
             List of dot-pathed relationship paths.
+        :param from_obj:
+            An SQLAlchemy selectable (for example a Query object) to select the
+            query results from.
+
+
+        :raises sqlalchemy_json_api.IdPropertyNotFound:
+            If one of the referenced models does not have an id property
+
+        :raises sqlalchemy_json_api.InvalidField:
+            If trying to include foreign key field.
+
+        :raises sqlalchemy_json_api.UnknownModel:
+            If the model mapping of this QueryBuilder does not contain the
+            given root model.
+
+        :raises sqlalchemy_json_api.UnknownField:
+            If the given selectable does not contain given field.
+
+        :raises sqlalchemy_json_api.UnknownFieldKey:
+            If the given field list key is not present in the model mapping of
+            this query builder.
+
         """
         self.validate_field_keys(fields)
         if fields is None:
@@ -288,9 +340,9 @@ class QueryBuilder(object):
             from_obj
         )
 
-        empty_args = ['data', json_array]
+        empty_args = [s('data'), json_array]
         if include:
-            empty_args.extend(['included', json_array])
+            empty_args.extend([s('included'), json_array])
 
         included = self.build_included(model, fields, include, from_obj)
 

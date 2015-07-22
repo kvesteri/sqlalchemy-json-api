@@ -330,7 +330,7 @@ class TestQueryBuilder(object):
             QueryBuilder({'users': user_cls}).select(article_cls)
         assert str(e.value) == (
             "Unknown model given. Could not find model {0} from given "
-            "mapping.".format(
+            "model mapping.".format(
                 article_cls
             )
         )
