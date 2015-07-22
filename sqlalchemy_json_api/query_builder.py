@@ -77,13 +77,6 @@ class QueryBuilder(object):
                         field, column.key
                     )
                 )
-            elif column.primary_key:
-                raise InvalidField(
-                    "Field '{0}' is invalid. The underlying column "
-                    "'{1}' is primary key column.".format(
-                        field, column.key
-                    )
-                )
 
     def is_relationship_field(self, model, field):
         return field in get_mapper(model).relationships.keys()

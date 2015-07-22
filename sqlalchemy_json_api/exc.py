@@ -1,22 +1,22 @@
-class JSONAPIException(Exception):
+class QueryBuilderException(Exception):
     pass
 
 
-class InvalidField(JSONAPIException):
+class InvalidField(QueryBuilderException):
     pass
 
 
-class UnknownField(JSONAPIException):
+class UnknownField(QueryBuilderException):
     pass
 
 
-class UnknownModel(JSONAPIException):
+class UnknownModel(QueryBuilderException):
     pass
 
 
-class UnknownFieldKey(JSONAPIException):
+class UnknownFieldKey(QueryBuilderException):
     pass
 
 
-class IdPropertyNotFound(JSONAPIException):
+class IdPropertyNotFound(QueryBuilderException):
     pass

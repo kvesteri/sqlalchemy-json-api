@@ -356,18 +356,6 @@ class TestQueryBuilder(object):
             "attributes. Consider including relationship attributes."
         )
 
-    def test_throws_exception_for_primary_key_field(
-        self,
-        json_api,
-        article_cls
-    ):
-        with pytest.raises(InvalidField) as e:
-            json_api.select(article_cls, fields={'articles': ['id']})
-        assert str(e.value) == (
-            "Field 'id' is invalid. The underlying column "
-            "'_id' is primary key column."
-        )
-
     @pytest.mark.parametrize(
         ('fields', 'result'),
         (
