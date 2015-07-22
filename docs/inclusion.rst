@@ -1,7 +1,7 @@
 Inclusion of related models
 ---------------------------
 
-You can include related models by providing the `include` parameter to :func:`.QueryBuilder.select`.
+You can include related models by providing the `include` parameter to :meth:`.QueryBuilder.select`.
 
 ::
 

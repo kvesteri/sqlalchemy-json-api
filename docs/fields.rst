@@ -8,7 +8,7 @@ By default SQLAlchemy-JSON-API selects all orm descriptors for given model. This
 * Hybrid properties
 * Relationship properties
 
-You can customize this behaviour by providing the `fields` parameter to :func:`.QueryBuilder.select`.
+You can customize this behaviour by providing the ``fields`` parameter to :meth:`.QueryBuilder.select`.
 
 ::
 

@@ -2,7 +2,7 @@ Filtering queries
 -----------------
 
 
-You can filter query results by providing the ``from_obj`` parameter for :func:`.QueryBuilder.select`.
+You can filter query results by providing the ``from_obj`` parameter for :meth:`.QueryBuilder.select`.
 This parameter can be any SQLAlchemy selectable construct.
 
 
