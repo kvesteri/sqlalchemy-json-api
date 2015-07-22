@@ -8,4 +8,5 @@ Contents:
 
    installation
    quickstart
+   fields
    api
