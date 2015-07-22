@@ -14,7 +14,7 @@ PY3 = sys.version_info[0] == 3
 
 
 def get_version():
-    filename = os.path.join(HERE, 'sqlalchemy_json_api.py')
+    filename = os.path.join(HERE, 'sqlalchemy_json_api', '__init__.py')
     with open(filename) as f:
         contents = f.read()
     pattern = r"^__version__ = '(.*?)'$"
@@ -52,7 +52,7 @@ setup(
     platforms='any',
     dependency_links=[],
     install_requires=[
-        'SQLAlchemy-Utils>=0.30.12'
+        'SQLAlchemy-Utils>=0.30.13'
     ],
     extras_require=extras_require,
     classifiers=[
