@@ -9,4 +9,5 @@ Contents:
    installation
    quickstart
    fields
+   inclusion
    api
