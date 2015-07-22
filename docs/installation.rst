@@ -1,10 +1,10 @@
 Installation
-============
+------------
 
 This part of the documentation covers the installation of SQLAlchemy-JSON-API.
 
 Supported platforms
--------------------
+~~~~~~~~~~~~~~~~~~~
 
 SQLAlchemy-JSON-API has been tested against the following Python platforms.
 
@@ -15,7 +15,7 @@ SQLAlchemy-JSON-API has been tested against the following Python platforms.
 
 
 Installing an official release
-------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can install the most recent official SQLAlchemy-JSON-API version using
 pip_::
@@ -25,7 +25,7 @@ pip_::
 .. _pip: http://www.pip-installer.org/
 
 Installing the development version
-----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To install the latest version of SQLAlchemy-JSON-API, you need first obtain a
 copy of the source. You can do that by cloning the git_ repository::
@@ -41,7 +41,7 @@ script::
 .. _git: http://git-scm.org/
 
 Checking the installation
--------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To check that SQLAlchemy-JSON-API has been properly installed, type ``python``
 from your shell. Then at the Python prompt, try to import SQLAlchemy-JSON-API,
