@@ -26,6 +26,9 @@ from .utils import (
 )
 
 
+json_array = sa.cast(postgresql.array([]), postgresql.ARRAY(JSON))
+
+
 class QueryBuilder(object):
     def __init__(self, mapping):
         self.validate_mapping(mapping)
@@ -189,7 +192,7 @@ class QueryBuilder(object):
             query = sa.select([
                 sa.func.coalesce(
                     sa.func.array_agg(query.c.json_object),
-                    sa.cast(postgresql.array([]), postgresql.ARRAY(JSON))
+                    json_array
                 )
             ]).select_from(query)
 
@@ -263,6 +266,15 @@ class QueryBuilder(object):
                 )
 
     def select(self, model, fields=None, include=None, from_obj=None):
+        """
+        :param model:
+            The root model to build the select query from.
+        :param fields:
+            A mapping of fields. Keys representing model keys and values as
+            lists of model descriptor names.
+        :param include:
+            List of dot-pathed relationship paths.
+        """
         self.validate_field_keys(fields)
         if fields is None:
             fields = {}
@@ -276,15 +288,9 @@ class QueryBuilder(object):
             from_obj
         )
 
-        empty_args = [
-            'data',
-            sa.cast(postgresql.array([]), postgresql.ARRAY(JSON))
-        ]
+        empty_args = ['data', json_array]
         if include:
-            empty_args.extend([
-                'included',
-                sa.cast(postgresql.array([]), postgresql.ARRAY(JSON))
-            ])
+            empty_args.extend(['included', json_array])
 
         included = self.build_included(model, fields, include, from_obj)
 
