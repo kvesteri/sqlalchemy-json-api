@@ -64,7 +64,7 @@ By following this logic it would seem like a no-brainer to return the JSON direc
 
 You can simply write:
 
-::
+.. code-block:: python
 
 
     from sqlalchemy_json_api import QueryBuilder
@@ -75,4 +75,4 @@ You can simply write:
     result = session.execute(query).scalar()
 
 
-.. image: https://c1.staticflickr.com/1/56/188370562_8fe0f3cba9.jpg
+.. image:: https://c1.staticflickr.com/1/56/188370562_8fe0f3cba9.jpg
