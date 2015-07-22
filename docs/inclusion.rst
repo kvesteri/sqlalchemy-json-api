@@ -6,7 +6,7 @@ You can include related models by providing the `include` parameter to :func:`.Q
 ::
 
 
-    query_builder.select(
+    query = query_builder.select(
         Article,
         fields={'articles': ['name', 'comments']},
         include=['comments']

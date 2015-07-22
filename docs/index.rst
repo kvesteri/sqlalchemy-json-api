@@ -10,4 +10,5 @@ Contents:
    quickstart
    fields
    inclusion
+   filtering
    api
