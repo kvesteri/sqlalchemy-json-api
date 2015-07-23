@@ -3,7 +3,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSON, JSONB
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.expression import union
-from sqlalchemy_utils.functions import get_mapper
+from sqlalchemy_utils.functions import cast_if, get_mapper
 from sqlalchemy_utils.functions.orm import get_all_descriptors
 from sqlalchemy_utils.relationships import (
     path_to_relationships,
@@ -155,7 +155,7 @@ class QueryBuilder(object):
         model_alias = self.get_model_alias(model)
         return [
             s('id'),
-            sa.cast(get_attrs(from_obj).id, sa.Text),
+            cast_if(get_attrs(from_obj).id, sa.String),
             s('type'),
             s(model_alias),
         ]

@@ -52,7 +52,7 @@ setup(
     platforms='any',
     dependency_links=[],
     install_requires=[
-        'SQLAlchemy-Utils>=0.30.13'
+        'SQLAlchemy-Utils>=0.30.14'
     ],
     extras_require=extras_require,
     classifiers=[
