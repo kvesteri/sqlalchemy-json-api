@@ -40,7 +40,7 @@ By following this logic it would seem like a no-brainer to return the JSON direc
                             (SELECT
                                 coalesce(
                                     array_agg(relationships.json_object),
-                                    CAST(ARRAY[] AS JSON[])
+                                    ARRAY[]::JSON[]
                                 ) AS coalesce_2
                             FROM (
                                 SELECT json_build_object(
@@ -50,7 +50,7 @@ By following this logic it would seem like a no-brainer to return the JSON direc
                                     'comments'
                                 ) AS json_object
                                 FROM comment AS comment_1
-                                WHERE article._id = comment_1.article_id
+                                WHERE article.id = comment_1.article_id
                             ) AS relationships)
                         )
                     )
@@ -59,7 +59,7 @@ By following this logic it would seem like a no-brainer to return the JSON direc
         )) AS json_build_object_1
         FROM article
     ),
-    json_build_object('data', CAST(ARRAY[] AS JSON[]))) AS coalesce_1
+    json_build_object('data', ARRAY[]::JSON[])) AS coalesce_1
 
 
 You can simply write:
