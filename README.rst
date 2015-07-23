@@ -1,12 +1,12 @@
 SQLAlchemy-JSON-API
 ===================
 
-Fast SQLAlchemy query builder for returning JSON API compatible results. Currently supports only PostgreSQL.
+Fast `SQLAlchemy`_ query builder for returning `JSON API`_ compatible results. Currently supports only `PostgreSQL`_.
 
 Why?
 ----
 
-Speed is essential for JSON APIs. Fetching objects in SQLAlchemy and serializing them
+Speed is essential for JSON APIs. Fetching objects in `SQLAlchemy`_ and serializing them
 on Python server is an order of magnitude slower than returning JSON directly from database. This is because
 
 1. Complex object structures are hard or impossible to fetch with single query when the serialization happens on Python side. Any kind of JSON API compatible object structure can be returned with a single query from database.
@@ -101,3 +101,8 @@ To get results such as:
 
 
 .. image:: https://c1.staticflickr.com/1/56/188370562_8fe0f3cba9.jpg
+
+
+.. _SQLAlchemy: http://www.sqlalchemy.org
+.. _PostgreSQL: http://www.postgresql.org
+.. _`JSON API`: http://jsonapi.org
