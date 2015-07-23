@@ -29,6 +29,16 @@ from .utils import (
 json_array = sa.cast(postgresql.array([], type_=JSON), postgresql.ARRAY(JSON))
 
 
+RESERVED_KEYWORDS = (
+    'id',
+    'type',
+    'links',
+    'included',
+    'attributes',
+    'relationships'
+)
+
+
 class QueryBuilder(object):
     """
     ::
@@ -104,10 +114,7 @@ class QueryBuilder(object):
 
     def should_skip_columnar_descriptor(self, from_obj, descriptor):
         columns = get_descriptor_columns(from_obj, descriptor)
-        return (
-            len(columns) == 1 and
-            (columns[0].foreign_keys or columns[0].primary_key)
-        )
+        return (len(columns) == 1 and columns[0].foreign_keys)
 
     def get_all_fields(self, from_obj):
         return [
@@ -115,6 +122,7 @@ class QueryBuilder(object):
             for field, descriptor in get_all_descriptors(from_obj).items()
             if (
                 field != '__mapper__' and
+                field not in RESERVED_KEYWORDS and
                 not self.is_relationship_descriptor(descriptor) and
                 not self.should_skip_columnar_descriptor(from_obj, descriptor)
             )
@@ -296,7 +304,7 @@ class QueryBuilder(object):
             A mapping of fields. Keys representing model keys and values as
             lists of model descriptor names.
         :param include:
-            List of dot-pathed relationship paths.
+            List of dot-separated relationship paths.
         :param from_obj:
             An SQLAlchemy selectable (for example a Query object) to select the
             query results from.
