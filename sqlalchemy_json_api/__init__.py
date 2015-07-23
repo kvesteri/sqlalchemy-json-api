@@ -1,4 +1,4 @@
-from .exc import (
+from .exc import (  # noqa
     IdPropertyNotFound,
     InvalidField,
     UnknownField,

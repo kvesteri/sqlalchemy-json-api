@@ -193,7 +193,6 @@ def dns():
 @pytest.yield_fixture(scope='class')
 def engine(dns):
     engine = create_engine(dns)
-    engine.echo = True
     yield engine
     engine.dispose()
 

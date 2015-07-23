@@ -19,8 +19,8 @@ from .exc import (
 )
 from .utils import (
     get_attrs,
-    get_selectable,
     get_descriptor_columns,
+    get_selectable,
     s,
     subpaths
 )
