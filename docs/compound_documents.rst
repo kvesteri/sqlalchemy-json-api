@@ -1,7 +1,10 @@
-Inclusion of related models
----------------------------
+Compound documents
+------------------
 
-You can include related models by providing the `include` parameter to :meth:`.QueryBuilder.select`.
+You can create queries returning `compound document responses`_ by providing the ``include`` parameter to :meth:`.QueryBuilder.select`.
+
+
+.. _`compound document responses`: http://jsonapi.org/format/#document-compound-documents
 
 ::
 
@@ -36,6 +39,20 @@ You can include related models by providing the `include` parameter to :meth:`.Q
     #             'attributes': {
     #                 'content': 'Some comment'
     #             }
+    #         },
+    #         {
+    #             'id': '2',
+    #             'type': 'comments',
+    #             'attributes': {
+    #                 'content': 'Some other comment'
+    #             }
     #         }
     #     ]
     # }
+
+
+.. note::
+
+    SQLAlchemy-JSON-API always returns all included resources ordered by first
+    type and then by id in ascending order. The consistent order of resources
+    helps testing APIs.

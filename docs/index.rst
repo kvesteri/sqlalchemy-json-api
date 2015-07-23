@@ -9,6 +9,6 @@ Contents:
    installation
    quickstart
    fields
-   inclusion
+   compound_documents
    filtering
    api
