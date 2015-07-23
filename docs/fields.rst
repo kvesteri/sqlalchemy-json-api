@@ -1,5 +1,5 @@
-Selecting specific fields
--------------------------
+Selecting fields
+----------------
 
 By default SQLAlchemy-JSON-API selects all orm descriptors for given model. This includes:
 
@@ -7,6 +7,11 @@ By default SQLAlchemy-JSON-API selects all orm descriptors for given model. This
 * Synonyms
 * Hybrid properties
 * Relationship properties
+
+Please notice that you can't include regular descriptors, only orm descriptors.
+
+The id property
+^^^^^^^^^^^^^^^
 
 Each included model MUST have an ``id`` property. Usually this should be the primary key of your model. If your model doesn't have an ``id`` property you can add one by using for example SQLAlchemy hybrids.
 
@@ -33,9 +38,14 @@ Each included model MUST have an ``id`` property. Usually this should be the pri
         def id(self):
             return self.group_id + ':' + self.user_id
 
+.. note::
+
+    SQLAlchemy-JSON-API always returns the id as a string. If the type of the id property is not a string
+    SQLAlchemy-JSON-API tries to cast the given property to string.
 
 
-Please notice that you can't include regular descriptors, only orm descriptors.
+Customizing field selection
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can customize this behaviour by providing the ``fields`` parameter to :meth:`.QueryBuilder.select`.
 
