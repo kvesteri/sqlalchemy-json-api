@@ -75,4 +75,29 @@ You can simply write:
     result = session.execute(query).scalar()
 
 
+To get results such as:
+
+.. code-block:: python
+
+
+    {
+        'data': [{
+            'id': '1',
+            'type': 'articles',
+            'attributes': {
+                'content': 'Some content',
+                'name': 'Some article',
+            },
+            'relationships': {
+                'comments': {
+                    'data': [
+                        {'id': '1', 'type': 'comments'},
+                        {'id': '2', 'type': 'comments'}
+                    ]
+                },
+            },
+        }],
+    }
+
+
 .. image:: https://c1.staticflickr.com/1/56/188370562_8fe0f3cba9.jpg
