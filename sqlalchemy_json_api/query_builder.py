@@ -54,9 +54,10 @@ class QueryBuilder(object):
         A mapping with keys representing JSON API resource identifier type
         names and values as SQLAlchemy models.
 
-        It is recommended to use lowercased hyphenized names for resource
-        identifier types. So for example model such as LeagueInvitiation
-        should have an equivalent key of 'league-invitation'.
+        It is recommended to use lowercased pluralized hyphenized names for
+        resource identifier types. So for example model such as
+        LeagueInvitiation should have an equivalent key of
+        'league-invitations'.
     """
     def __init__(self, model_mapping):
         self.validate_model_mapping(model_mapping)
