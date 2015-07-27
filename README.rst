@@ -17,49 +17,54 @@ By following this logic it would seem like a no-brainer to return the JSON direc
 
 .. code-block:: sql
 
-    SELECT coalesce(
-        (SELECT json_build_object(
-            'data',
-            (SELECT array_agg(main_json.json_object) AS array_agg_1
+    SELECT row_to_json(main_json_query.*)
+    FROM (
+        SELECT (
+            SELECT coalesce(
+                array_agg(data_query.data),
+                CAST(ARRAY[] AS JSON[])
+            ) AS data
             FROM (
-                SELECT json_build_object(
-                    'id',
-                    CAST(article.id AS TEXT),
-                    'type',
-                    'articles',
-                    'attributes',
+                SELECT
                     json_build_object(
-                        'name',
-                        article.name
-                    ),
-                    'relationships',
-                    json_build_object(
-                        'comments',
+                        'id',
+                        CAST(article.id AS VARCHAR),
+                        'type',
+                        'articles',
+                        'attributes',
                         json_build_object(
-                            'data',
-                            (SELECT
-                                coalesce(
-                                    array_agg(relationships.json_object),
-                                    ARRAY[]::JSON[]
-                                ) AS coalesce_2
-                            FROM (
-                                SELECT json_build_object(
-                                    'id',
-                                    CAST(comment_1.id AS TEXT),
-                                    'type',
-                                    'comments'
-                                ) AS json_object
-                                FROM comment AS comment_1
-                                WHERE article.id = comment_1.article_id
-                            ) AS relationships)
+                            'name',
+                            article.name
+                        ),
+                        'relationships',
+                        json_build_object(
+                            'comments',
+                            json_build_object(
+                                'data',
+                                (
+                                    SELECT
+                                    coalesce(
+                                        array_agg(relationships.json_object),
+                                        CAST(ARRAY[] AS JSON[])
+                                    ) AS coalesce_2
+                                    FROM (
+                                        SELECT json_build_object(
+                                            'id',
+                                            CAST(comment.id AS VARCHAR),
+                                            'type',
+                                            'comments'
+                                        ) AS json_object
+                                        FROM comment
+                                        WHERE article.id = comment.article_id
+                                    ) AS relationships
+                                )
+                            )
                         )
-                    )
-                ) AS json_object
-            ) AS main_json
-        )) AS json_build_object_1
-        FROM article
-    ),
-    json_build_object('data', ARRAY[]::JSON[])) AS coalesce_1
+                    ) AS data
+                FROM article
+            ) AS data_query
+        ) AS data
+    ) AS main_json_query
 
 
 You can simply write:
