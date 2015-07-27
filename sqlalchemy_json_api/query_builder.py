@@ -25,8 +25,12 @@ from .utils import (
     subpaths
 )
 
-
-json_array = sa.cast(postgresql.array([], type_=JSON), postgresql.ARRAY(JSON))
+json_array = sa.cast(
+    postgresql.array([], type_=JSON), postgresql.ARRAY(JSON)
+)
+jsonb_array = sa.cast(
+    postgresql.array([], type_=JSONB), postgresql.ARRAY(JSONB)
+)
 
 
 RESERVED_KEYWORDS = (
@@ -252,19 +256,7 @@ class QueryBuilder(object):
             )
         )
 
-        subquery = sa.select(
-            [
-                sa.func.json_build_object(*json_fields)
-                .label('json_object')
-            ]
-        ).correlate(from_obj).alias('main_json')
-        return [
-            s('data'),
-            sa.select(
-                [sa.func.array_agg(subquery.c.json_object)],
-                from_obj=subquery
-            ).correlate(from_obj).as_scalar()
-        ]
+        return sa.func.json_build_object(*json_fields).label('data')
 
     def validate_model(self, model):
         if model not in self.inversed:
@@ -334,32 +326,52 @@ class QueryBuilder(object):
             fields = {}
         if from_obj is None:
             from_obj = model
+        elif isinstance(from_obj, sa.orm.query.Query):
+            from_obj = from_obj.subquery()
 
-        args = self.build_data(
+        data_query = sa.select([self.build_data(
+            model,
+            fields,
+            include,
+            from_obj
+        )], from_obj=from_obj).alias('data_query')
+
+        included_query = self.build_included(
             model,
             fields,
             include,
             from_obj
         )
 
-        empty_args = [s('data'), json_array]
-        if include:
-            empty_args.extend([s('included'), json_array])
+        from_args = [
+            sa.select(
+                [sa.func.coalesce(
+                    sa.func.array_agg(data_query.c.data),
+                    json_array
+                ).label('data')],
+                from_obj=data_query
+            ).correlate(from_obj).as_scalar().label('data')
+        ]
 
-        included = self.build_included(model, fields, include, from_obj)
+        if included_query is not None:
+            from_args.append(included_query.as_scalar().label('included'))
 
-        if included:
-            args.extend(included)
+        main_json_query = sa.select(from_args).alias('main_json_query')
 
-        query = sa.select([
-            sa.func.coalesce(
-                sa.select(
-                    [sa.func.json_build_object(*args)],
-                    from_obj=from_obj
-                ).as_scalar(),
-                sa.func.json_build_object(*empty_args)
-            )
-        ])
+        query = sa.select(
+            [
+                sa.func.coalesce(
+                    sa.func.row_to_json(sa.text('main_json_query.*')),
+                    sa.func.json_build_object(
+                        'data',
+                        json_array,
+                        'included',
+                        json_array
+                    )
+                )
+            ],
+            from_obj=main_json_query
+        )
         return query
 
     def build_single_included_fields(self, alias, fields):
@@ -386,7 +398,7 @@ class QueryBuilder(object):
                 *self.build_single_included_fields(alias, fields)
             ),
             JSONB
-        ).label('json_object')
+        ).label('included')
 
         query = select_correlated_expression(
             model,
@@ -407,9 +419,7 @@ class QueryBuilder(object):
         return query
 
     def build_included(self, model, fields, include, from_obj):
-        included = []
         if include:
-            included.append(s('included'))
             selects = [
                 self.build_single_included(model, fields, subpath, from_obj)
                 for path in include
@@ -418,16 +428,19 @@ class QueryBuilder(object):
 
             union_select = union(*selects).alias('included_union')
             subquery = sa.select(
-                [union_select.c.json_object],
+                [union_select.c.included],
                 from_obj=union_select
             ).order_by(
-                union_select.c.json_object[s('type')],
-                union_select.c.json_object[s('id')]
-            ).alias('included')
-            included.append(
-                sa.select(
-                    [sa.func.array_agg(subquery.c.json_object, [])],
-                    from_obj=subquery
-                ).as_scalar()
+                union_select.c.included[s('type')],
+                union_select.c.included[s('id')]
+            ).alias()
+
+            return sa.select(
+                [
+                    sa.func.coalesce(
+                        sa.func.array_agg(subquery.c.included),
+                        jsonb_array
+                    ).label('included')
+                ],
+                from_obj=subquery
             )
-        return included

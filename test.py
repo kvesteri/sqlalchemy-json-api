@@ -122,7 +122,7 @@ def category_cls(base, group_user_cls, friendship_cls):
 def article_cls(base, category_cls, user_cls):
     class Article(base):
         __tablename__ = 'article'
-        id = sa.Column('_id', sa.Integer, primary_key=True)
+        id = sa.Column(sa.Integer, primary_key=True)
         name = sa.Column(sa.String)
         name_synonym = sa.orm.synonym('name')
 
@@ -170,7 +170,7 @@ def comment_cls(base, article_cls, user_cls):
     article_cls.comment_count = sa.orm.column_property(
         sa.select([sa.func.count(Comment.id)])
         .where(Comment.article_id == article_cls.id)
-        .correlate_except(article_cls)
+        .correlate(article_cls).label('comment_count')
     )
 
     return Comment
@@ -297,12 +297,12 @@ def dataset(
 
 
 @pytest.fixture
-def json_api(model_mapping):
+def query_builder(model_mapping):
     return QueryBuilder(model_mapping)
 
 
 @pytest.mark.usefixtures('table_creator', 'dataset')
-class TestQueryBuilder(object):
+class TestQueryBuilderSelect(object):
     def test_throws_exception_for_unknown_fields_key(self, composite_pk_cls):
         with pytest.raises(IdPropertyNotFound) as e:
             QueryBuilder({'something': composite_pk_cls})
@@ -314,11 +314,11 @@ class TestQueryBuilder(object):
 
     def test_throws_exception_for_model_without_id_property(
         self,
-        json_api,
+        query_builder,
         article_cls
     ):
         with pytest.raises(UnknownFieldKey) as e:
-            json_api.select(article_cls, fields={'bogus': []})
+            query_builder.select(article_cls, fields={'bogus': []})
         assert str(e.value) == (
             "Unknown field keys given. Could not find key 'bogus' from "
             "given model mapping."
@@ -334,9 +334,13 @@ class TestQueryBuilder(object):
             )
         )
 
-    def test_throws_exception_for_unknown_field(self, json_api, article_cls):
+    def test_throws_exception_for_unknown_field(
+        self,
+        query_builder,
+        article_cls
+    ):
         with pytest.raises(UnknownField) as e:
-            json_api.select(article_cls, fields={'articles': ['bogus']})
+            query_builder.select(article_cls, fields={'articles': ['bogus']})
         assert str(e.value) == (
             "Unknown field 'bogus'. Given selectable does not have "
             "descriptor named 'bogus'."
@@ -344,11 +348,14 @@ class TestQueryBuilder(object):
 
     def test_throws_exception_for_foreign_key_field(
         self,
-        json_api,
+        query_builder,
         article_cls
     ):
         with pytest.raises(InvalidField) as e:
-            json_api.select(article_cls, fields={'articles': ['author_id']})
+            query_builder.select(
+                article_cls,
+                fields={'articles': ['author_id']}
+            )
         assert str(e.value) == (
             "Field 'author_id' is invalid. The underlying column "
             "'author_id' has foreign key. You can't include foreign key "
@@ -474,13 +481,13 @@ class TestQueryBuilder(object):
     )
     def test_fields_parameter(
         self,
-        json_api,
+        query_builder,
         session,
         article_cls,
         fields,
         result
     ):
-        query = json_api.select(article_cls, fields=fields)
+        query = query_builder.select(article_cls, fields=fields)
         assert session.execute(query).scalar() == result
 
     @pytest.mark.parametrize(
@@ -502,13 +509,13 @@ class TestQueryBuilder(object):
     )
     def test_fields_parameter_with_column_property(
         self,
-        json_api,
+        query_builder,
         session,
         article_cls,
         fields,
         result
     ):
-        query = json_api.select(article_cls, fields=fields)
+        query = query_builder.select(article_cls, fields=fields)
         assert session.execute(query).scalar() == result
 
     @pytest.mark.parametrize(
@@ -530,13 +537,13 @@ class TestQueryBuilder(object):
     )
     def test_fields_parameter_with_synonym_property(
         self,
-        json_api,
+        query_builder,
         session,
         article_cls,
         fields,
         result
     ):
-        query = json_api.select(article_cls, fields=fields)
+        query = query_builder.select(article_cls, fields=fields)
         assert session.execute(query).scalar() == result
 
     @pytest.mark.parametrize(
@@ -558,13 +565,13 @@ class TestQueryBuilder(object):
     )
     def test_fields_parameter_with_hybrid_property(
         self,
-        json_api,
+        query_builder,
         session,
         article_cls,
         fields,
         result
     ):
-        query = json_api.select(article_cls, fields=fields)
+        query = query_builder.select(article_cls, fields=fields)
         assert session.execute(query).scalar() == result
 
     @pytest.mark.parametrize(
@@ -703,14 +710,14 @@ class TestQueryBuilder(object):
     )
     def test_include_parameter(
         self,
-        json_api,
+        query_builder,
         session,
         article_cls,
         fields,
         include,
         result
     ):
-        query = json_api.select(
+        query = query_builder.select(
             article_cls,
             fields=fields,
             include=include
@@ -851,14 +858,14 @@ class TestQueryBuilder(object):
     )
     def test_deep_relationships(
         self,
-        json_api,
+        query_builder,
         session,
         article_cls,
         fields,
         include,
         result
     ):
-        query = json_api.select(
+        query = query_builder.select(
             article_cls,
             fields=fields,
             include=include
@@ -1048,20 +1055,20 @@ class TestQueryBuilder(object):
     )
     def test_self_referencing_m2m(
         self,
-        json_api,
+        query_builder,
         session,
         user_cls,
         fields,
         include,
         result
     ):
-        query = json_api.select(
+        query = query_builder.select(
             user_cls,
             fields=fields,
             include=include,
             from_obj=session.query(user_cls).filter(
                 user_cls.id == 1
-            ).subquery('main_query')
+            )
         )
         assert session.execute(query).scalar() == result
 
@@ -1090,20 +1097,20 @@ class TestQueryBuilder(object):
     )
     def test_included_as_empty(
         self,
-        json_api,
+        query_builder,
         session,
         user_cls,
         fields,
         include,
         result
     ):
-        query = json_api.select(
+        query = query_builder.select(
             user_cls,
             fields=fields,
             include=include,
             from_obj=session.query(user_cls).filter(
                 user_cls.id == 5
-            ).subquery('main_query')
+            )
         )
         assert session.execute(query).scalar() == result
 
@@ -1120,23 +1127,63 @@ class TestQueryBuilder(object):
                     'included': []
                 }
             ),
+            (
+                {
+                    'users': [],
+                },
+                None,
+                {
+                    'data': [],
+                }
+            ),
         )
     )
     def test_empty_data(
         self,
-        json_api,
+        query_builder,
         session,
         user_cls,
         fields,
         include,
         result
     ):
-        query = json_api.select(
+        query = query_builder.select(
             user_cls,
             fields=fields,
             include=include,
-            from_obj=session.query(user_cls).filter(
-                user_cls.id == 99
-            ).subquery('main_query')
+            from_obj=session.query(user_cls).filter(user_cls.id == 99)
         )
         assert session.execute(query).scalar() == result
+
+    def test_fetch_multiple_results(self, query_builder, session, user_cls):
+        query = query_builder.select(
+            user_cls,
+            fields={'users': ['all_friends']},
+            from_obj=(
+                session.query(user_cls)
+                .filter(user_cls.id.in_([1, 2]))
+                .order_by(user_cls.id)
+            )
+        )
+        assert session.execute(query).scalar() == {
+            'data': [
+                {'relationships': {
+                    'all_friends': {'data': [{'id': '2', 'type': 'users'}]
+                }},
+                'id': '1',
+                'type': 'users'
+                },
+                {'relationships': {
+                    'all_friends': {
+                        'data': [
+                            {'id': '1', 'type': 'users'},
+                            {'id': '3', 'type': 'users'},
+                            {'id': '4', 'type': 'users'}
+                        ]
+                    }
+                },
+                'id': '2',
+                'type': 'users'
+                }
+            ]
+        }
