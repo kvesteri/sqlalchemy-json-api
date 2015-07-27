@@ -246,7 +246,7 @@ class QueryBuilder(object):
             []
         )
 
-    def build_data(self, model, fields, include, from_obj):
+    def build_data_expr(self, model, fields, include, from_obj):
         json_fields = self.build_resource_identifier(model, from_obj)
         json_fields.extend(
             self.build_attrs_and_relationships(
@@ -255,8 +255,23 @@ class QueryBuilder(object):
                 from_obj
             )
         )
-
         return sa.func.json_build_object(*json_fields).label('data')
+
+    def build_data(self, model, fields, include, from_obj):
+        expr = self.build_data_expr(
+            model,
+            fields,
+            include,
+            from_obj
+        )
+        data_query = sa.select([expr], from_obj=from_obj).alias()
+        return sa.select(
+            [sa.func.coalesce(
+                sa.func.array_agg(data_query.c.data),
+                json_array
+            )],
+            from_obj=data_query
+        ).correlate(from_obj).as_scalar().label('data')
 
     def validate_model(self, model):
         if model not in self.inversed:
@@ -329,13 +344,6 @@ class QueryBuilder(object):
         elif isinstance(from_obj, sa.orm.query.Query):
             from_obj = from_obj.subquery()
 
-        data_query = sa.select([self.build_data(
-            model,
-            fields,
-            include,
-            from_obj
-        )], from_obj=from_obj).alias('data_query')
-
         included_query = self.build_included(
             model,
             fields,
@@ -343,15 +351,7 @@ class QueryBuilder(object):
             from_obj
         )
 
-        from_args = [
-            sa.select(
-                [sa.func.coalesce(
-                    sa.func.array_agg(data_query.c.data),
-                    json_array
-                ).label('data')],
-                from_obj=data_query
-            ).correlate(from_obj).as_scalar().label('data')
-        ]
+        from_args = [self.build_data(model, fields, include, from_obj)]
 
         if included_query is not None:
             from_args.append(included_query.as_scalar().label('included'))
@@ -410,27 +410,34 @@ class QueryBuilder(object):
 
     def build_included(self, model, fields, include, from_obj):
         if include:
+            from_obj = get_selectable(from_obj).alias()
             selects = [
                 self.build_single_included(model, fields, subpath, from_obj)
                 for path in include
                 for subpath in subpaths(path)
             ]
 
-            union_select = union(*selects).alias('included_union')
+            union_select = union(*selects).alias()
             subquery = sa.select(
                 [union_select.c.included],
                 from_obj=union_select
             ).order_by(
                 union_select.c.included[s('type')],
                 union_select.c.included[s('id')]
-            ).alias()
-
+            ).correlate(get_selectable(from_obj)).alias()
+            array_query = sa.select(
+                [sa.func.array_agg(subquery.c.included)],
+                from_obj=subquery
+            )
+            query = sa.select(
+                [array_query.as_scalar()],
+                from_obj=from_obj
+            )
             return sa.select(
                 [
                     sa.func.coalesce(
-                        sa.func.array_agg(subquery.c.included),
+                        query.as_scalar(),
                         jsonb_array
                     ).label('included')
-                ],
-                from_obj=subquery
+                ]
             )
