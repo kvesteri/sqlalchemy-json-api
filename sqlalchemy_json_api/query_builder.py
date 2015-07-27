@@ -359,17 +359,7 @@ class QueryBuilder(object):
         main_json_query = sa.select(from_args).alias('main_json_query')
 
         query = sa.select(
-            [
-                sa.func.coalesce(
-                    sa.func.row_to_json(sa.text('main_json_query.*')),
-                    sa.func.json_build_object(
-                        'data',
-                        json_array,
-                        'included',
-                        json_array
-                    )
-                )
-            ],
+            [sa.func.row_to_json(sa.text('main_json_query.*'))],
             from_obj=main_json_query
         )
         return query
