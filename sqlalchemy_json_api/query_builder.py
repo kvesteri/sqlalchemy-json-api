@@ -68,7 +68,7 @@ class QueryBuilder(object):
     def __init__(self, model_mapping):
         self.validate_model_mapping(model_mapping)
         self.model_mapping = model_mapping
-        self.inversed = dict(
+        self.inversed_model_mapping = dict(
             (value, key) for key, value in self.model_mapping.items()
         ) if model_mapping else None
 
@@ -125,7 +125,7 @@ class QueryBuilder(object):
         columns = get_descriptor_columns(from_obj, descriptor)
         return (len(columns) == 1 and columns[0].foreign_keys)
 
-    def get_all_descriptors(self, model, from_obj):
+    def get_adapted_descriptors(self, model, from_obj):
         return (
             get_all_descriptors(from_obj).items() +
             [
@@ -137,7 +137,8 @@ class QueryBuilder(object):
     def get_all_fields(self, model, from_obj):
         return [
             field
-            for field, descriptor in self.get_all_descriptors(model, from_obj)
+            for field, descriptor
+            in self.get_adapted_descriptors(model, from_obj)
             if (
                 field != '__mapper__' and
                 field not in RESERVED_KEYWORDS and
@@ -159,17 +160,18 @@ class QueryBuilder(object):
             self.validate_fields(model, model_fields, from_obj)
         return model_fields
 
-    def build_attributes(self, model, fields, from_obj):
+    def adapt_attribute(self, attr_name, model, from_obj):
         cols = get_attrs(from_obj)
         hybrids = get_hybrid_properties(model).keys()
+        if attr_name in hybrids:
+            return ClauseAdapter(from_obj).traverse(getattr(model, attr_name))
+        else:
+            return getattr(cols, attr_name)
+
+    def build_attributes(self, model, fields, from_obj):
         return sum(
             (
-                [s(key), getattr(cols, key)]
-                if key not in hybrids else
-                [
-                    s(key),
-                    ClauseAdapter(from_obj).traverse(getattr(model, key))
-                ]
+                [s(key), self.adapt_attribute(key, model, from_obj)]
                 for key in self.get_model_fields(model, fields, from_obj)
             ),
             []
@@ -181,7 +183,7 @@ class QueryBuilder(object):
         else:
             key = model
         self.validate_model(key)
-        return self.inversed[key]
+        return self.inversed_model_mapping[key]
 
     def build_resource_identifier(self, model, from_obj):
         model_alias = self.get_model_alias(model)
@@ -289,7 +291,7 @@ class QueryBuilder(object):
         ).correlate(from_obj).as_scalar().label('data')
 
     def validate_model(self, model):
-        if model not in self.inversed:
+        if model not in self.inversed_model_mapping:
             raise UnknownModel(
                 'Unknown model given. Could not find model %r from given '
                 'model mapping.' % model

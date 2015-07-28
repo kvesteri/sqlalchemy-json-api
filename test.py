@@ -1122,23 +1122,14 @@ class TestQueryBuilderSelect(object):
         ('fields', 'include', 'result'),
         (
             (
-                {
-                    'users': [],
-                },
+                {'users': []},
                 ['groups'],
-                {
-                    'data': [],
-                    'included': []
-                }
+                {'data': [], 'included': []}
             ),
             (
-                {
-                    'users': [],
-                },
+                {'users': []},
                 None,
-                {
-                    'data': [],
-                }
+                {'data': []}
             ),
         )
     )
@@ -1171,23 +1162,25 @@ class TestQueryBuilderSelect(object):
         )
         assert session.execute(query).scalar() == {
             'data': [
-                {'relationships': {
-                    'all_friends': {'data': [{'id': '2', 'type': 'users'}]
-                }},
-                'id': '1',
-                'type': 'users'
+                {
+                    'relationships': {
+                        'all_friends': {'data': [{'id': '2', 'type': 'users'}]}
+                    },
+                    'id': '1',
+                    'type': 'users'
                 },
-                {'relationships': {
-                    'all_friends': {
-                        'data': [
-                            {'id': '1', 'type': 'users'},
-                            {'id': '3', 'type': 'users'},
-                            {'id': '4', 'type': 'users'}
-                        ]
-                    }
-                },
-                'id': '2',
-                'type': 'users'
+                {
+                    'relationships': {
+                        'all_friends': {
+                            'data': [
+                                {'id': '1', 'type': 'users'},
+                                {'id': '3', 'type': 'users'},
+                                {'id': '4', 'type': 'users'}
+                            ]
+                        }
+                    },
+                    'id': '2',
+                    'type': 'users'
                 }
             ]
         }
