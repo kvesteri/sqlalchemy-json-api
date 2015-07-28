@@ -245,20 +245,23 @@ class QueryBuilder(object):
             )
         ]
 
-    def build_relationships(self, model, fields, from_obj):
+    def get_relationship_properties(self, model, fields):
         model_alias = self.get_model_alias(model)
         if model_alias not in fields:
-            relationships = list(get_mapper(model).relationships.values())
+            return list(get_mapper(model).relationships.values())
         else:
-            relationships = [
+            return [
                 get_mapper(model).relationships[field]
                 for field in fields[model_alias]
                 if field in get_mapper(model).relationships.keys()
             ]
+
+    def build_relationships(self, model, fields, from_obj):
         return sum(
             (
                 self.build_relationship(model, fields, relationship, from_obj)
-                for relationship in relationships
+                for relationship
+                in self.get_relationship_properties(model, fields)
             ),
             []
         )
@@ -314,6 +317,8 @@ class QueryBuilder(object):
 
     def select(self, model, fields=None, include=None, from_obj=None):
         """
+        Builds a query for selecting multiple resource instances.
+
         ::
 
             query = query_builder.select(
@@ -334,7 +339,7 @@ class QueryBuilder(object):
         :param include:
             List of dot-separated relationship paths.
         :param from_obj:
-            An SQLAlchemy selectable (for example a Query object) to select the
+            A SQLAlchemy selectable (for example a Query object) to select the
             query results from.
 
 
@@ -364,6 +369,51 @@ class QueryBuilder(object):
         return self._select(model, from_obj, fields, include)
 
     def select_one(self, model, id, fields=None, include=None, from_obj=None):
+        """
+        Builds a query for selecting single resource instance.
+
+        ::
+
+            query = query_builder.select_one(
+                Article,
+                1,
+                fields={'articles': ['name', 'author', 'comments']},
+                include=['author', 'comments.author'],
+            )
+
+
+        :param model:
+            The root model to build the select query from.
+        :param id:
+            The id of the resource to select.
+        :param fields:
+            A mapping of fields. Keys representing model keys and values as
+            lists of model descriptor names.
+        :param include:
+            List of dot-separated relationship paths.
+        :param from_obj:
+            A SQLAlchemy selectable (for example a Query object) to select the
+            query results from.
+
+
+        :raises sqlalchemy_json_api.IdPropertyNotFound:
+            If one of the referenced models does not have an id property
+
+        :raises sqlalchemy_json_api.InvalidField:
+            If trying to include foreign key field.
+
+        :raises sqlalchemy_json_api.UnknownModel:
+            If the model mapping of this QueryBuilder does not contain the
+            given root model.
+
+        :raises sqlalchemy_json_api.UnknownField:
+            If the given selectable does not contain given field.
+
+        :raises sqlalchemy_json_api.UnknownFieldKey:
+            If the given field list key is not present in the model mapping of
+            this query builder.
+
+        """
         if from_obj is None:
             from_obj = sa.orm.query.Query(model)
 
