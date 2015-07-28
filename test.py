@@ -375,8 +375,7 @@ class TestQueryBuilderSelect(object):
                             'comment_count': 1,
                             'content': None,
                             'name': 'Some article',
-                            'name_upper': 'SOME ARTICLE',
-                            'name_synonym': 'Some article'
+                            'name_upper': 'SOME ARTICLE'
                         },
                         'relationships': {
                             'author': {
@@ -522,20 +521,20 @@ class TestQueryBuilderSelect(object):
         ('fields', 'result'),
         (
             (
-                {'articles': ['name_synonym']},
+                {'articles': ['name_upper']},
                 {
                     'data': [{
                         'type': 'articles',
                         'id': '1',
                         'attributes': {
-                            'name_synonym': 'Some article'
+                            'name_upper': 'SOME ARTICLE'
                         }
                     }]
                 }
             ),
         )
     )
-    def test_fields_parameter_with_synonym_property(
+    def test_fields_parameter_with_hybrid_property(
         self,
         query_builder,
         session,
@@ -563,7 +562,7 @@ class TestQueryBuilderSelect(object):
             ),
         )
     )
-    def test_fields_parameter_with_hybrid_property(
+    def test_hybrid_property_inclusion_uses_clause_adaptation(
         self,
         query_builder,
         session,
@@ -571,8 +570,13 @@ class TestQueryBuilderSelect(object):
         fields,
         result
     ):
-        query = query_builder.select(article_cls, fields=fields)
-        assert session.execute(query).scalar() == result
+        query = query_builder.select(
+            article_cls,
+            fields=fields,
+            from_obj=session.query(article_cls)
+        )
+        compiled = query.compile(dialect=sa.dialects.postgresql.dialect())
+        assert 'upper(anon_2.name)' in str(compiled)
 
     @pytest.mark.parametrize(
         ('fields', 'include', 'result'),
@@ -1186,4 +1190,40 @@ class TestQueryBuilderSelect(object):
                 'type': 'users'
                 }
             ]
+        }
+
+
+@pytest.mark.usefixtures('table_creator', 'dataset')
+class TestSelectOne(object):
+    def test_with_from_obj(self, query_builder, session, user_cls):
+        query = query_builder.select_one(
+            user_cls,
+            1,
+            fields={'users': ['all_friends']},
+            from_obj=session.query(user_cls)
+        )
+        assert session.execute(query).scalar() == {
+            'data': {
+                'relationships': {
+                    'all_friends': {'data': [{'id': '2', 'type': 'users'}]}
+                },
+                'id': '1',
+                'type': 'users'
+            }
+        }
+
+    def test_without_from_obj(self, query_builder, session, user_cls):
+        query = query_builder.select_one(
+            user_cls,
+            1,
+            fields={'users': ['all_friends']},
+        )
+        assert session.execute(query).scalar() == {
+            'data': {
+                'relationships': {
+                    'all_friends': {'data': [{'id': '2', 'type': 'users'}]}
+                },
+                'id': '1',
+                'type': 'users'
+            }
         }

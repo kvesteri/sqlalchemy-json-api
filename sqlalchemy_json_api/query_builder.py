@@ -3,6 +3,8 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSON, JSONB
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.expression import union
+from sqlalchemy.sql.util import ClauseAdapter
+from sqlalchemy_utils import get_hybrid_properties
 from sqlalchemy_utils.functions import cast_if, get_mapper
 from sqlalchemy_utils.functions.orm import get_all_descriptors
 from sqlalchemy_utils.relationships import (
@@ -99,6 +101,8 @@ class QueryBuilder(object):
     def validate_fields(self, model, fields, from_obj):
         selectable_descriptors = get_all_descriptors(from_obj)
         for field in fields:
+            if field in get_hybrid_properties(model):
+                continue
             if field not in selectable_descriptors.keys():
                 raise UnknownField(
                     "Unknown field '{0}'. Given selectable does not have "
@@ -121,10 +125,17 @@ class QueryBuilder(object):
         columns = get_descriptor_columns(from_obj, descriptor)
         return (len(columns) == 1 and columns[0].foreign_keys)
 
-    def get_all_fields(self, from_obj):
+    def get_all_fields(self, model, from_obj):
+        descriptors = (
+            get_all_descriptors(from_obj).items() +
+            [
+                (key, ClauseAdapter(from_obj).traverse(getattr(model, key)))
+                for key in get_hybrid_properties(model).keys()
+            ]
+        )
         return [
             field
-            for field, descriptor in get_all_descriptors(from_obj).items()
+            for field, descriptor in descriptors
             if (
                 field != '__mapper__' and
                 field not in RESERVED_KEYWORDS and
@@ -137,7 +148,7 @@ class QueryBuilder(object):
         model_key = self.get_model_alias(model)
 
         if not fields or model_key not in fields:
-            model_fields = self.get_all_fields(from_obj)
+            model_fields = self.get_all_fields(model, from_obj)
         else:
             model_fields = [
                 field for field in fields[model_key]
@@ -148,9 +159,15 @@ class QueryBuilder(object):
 
     def build_attributes(self, model, fields, from_obj):
         cols = get_attrs(from_obj)
+        hybrids = get_hybrid_properties(model).keys()
         return sum(
             (
                 [s(key), getattr(cols, key)]
+                if key not in hybrids else
+                [
+                    s(key),
+                    ClauseAdapter(from_obj).traverse(getattr(model, key))
+                ]
                 for key in self.get_model_fields(model, fields, from_obj)
             ),
             []
@@ -264,7 +281,10 @@ class QueryBuilder(object):
             include,
             from_obj
         )
-        data_query = sa.select([expr], from_obj=from_obj).alias()
+        return sa.select([expr], from_obj=from_obj)
+
+    def build_data_array(self, model, fields, include, from_obj):
+        data_query = self.build_data(model, fields, include, from_obj).alias()
         return sa.select(
             [sa.func.coalesce(
                 sa.func.array_agg(data_query.c.data),
@@ -336,24 +356,51 @@ class QueryBuilder(object):
             this query builder.
 
         """
+        if from_obj is None:
+            from_obj = sa.orm.query.Query(model)
+
+        from_obj = from_obj.subquery()
+
+        return self._select(model, from_obj, fields, include)
+
+    def select_one(self, model, id, fields=None, include=None, from_obj=None):
+        if from_obj is None:
+            from_obj = sa.orm.query.Query(model)
+
+        from_obj = from_obj.filter(model.id == id).subquery()
+
+        return self._select(model, from_obj, fields, include, multiple=False)
+
+    def _select(
+        self,
+        model,
+        from_obj,
+        fields=None,
+        include=None,
+        multiple=True
+    ):
         self.validate_field_keys(fields)
         if fields is None:
             fields = {}
-        if from_obj is None:
-            from_obj = model
-        elif isinstance(from_obj, sa.orm.query.Query):
-            from_obj = from_obj.subquery()
 
-        included_query = self.build_included(
-            model,
-            fields,
-            include,
-            from_obj
-        )
+        from_args = [
+            self.build_data_array(model, fields, include, from_obj)
+            if multiple else
+            self.build_data(
+                model,
+                fields,
+                include,
+                from_obj
+            ).as_scalar().label('data')
+        ]
 
-        from_args = [self.build_data(model, fields, include, from_obj)]
-
-        if included_query is not None:
+        if include is not None:
+            included_query = self.build_included(
+                model,
+                fields,
+                include,
+                from_obj
+            )
             from_args.append(included_query.as_scalar().label('included'))
 
         main_json_query = sa.select(from_args).alias('main_json_query')

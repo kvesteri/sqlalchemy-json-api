@@ -36,7 +36,7 @@ def get_descriptor_columns(model, descriptor):
         return descriptor.columns
     elif isinstance(descriptor, sa.Column):
         return [descriptor]
-    elif isinstance(descriptor, sa.sql.expression.ColumnClause):
+    elif isinstance(descriptor, sa.sql.expression.ClauseElement):
         return []
     elif isinstance(descriptor, sa.ext.hybrid.hybrid_property):
         expr = descriptor.expr(model)

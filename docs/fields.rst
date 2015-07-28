@@ -1,10 +1,9 @@
 Selecting fields
 ----------------
 
-By default SQLAlchemy-JSON-API selects all orm descriptors for given model. This includes:
+By default SQLAlchemy-JSON-API selects all orm descriptors (except synonyms) for given model. This includes:
 
 * Column properties
-* Synonyms
 * Hybrid properties
 * Relationship properties
 
