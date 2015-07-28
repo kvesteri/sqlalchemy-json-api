@@ -125,17 +125,19 @@ class QueryBuilder(object):
         columns = get_descriptor_columns(from_obj, descriptor)
         return (len(columns) == 1 and columns[0].foreign_keys)
 
-    def get_all_fields(self, model, from_obj):
-        descriptors = (
+    def get_all_descriptors(self, model, from_obj):
+        return (
             get_all_descriptors(from_obj).items() +
             [
                 (key, ClauseAdapter(from_obj).traverse(getattr(model, key)))
                 for key in get_hybrid_properties(model).keys()
             ]
         )
+
+    def get_all_fields(self, model, from_obj):
         return [
             field
-            for field, descriptor in descriptors
+            for field, descriptor in self.get_all_descriptors(model, from_obj)
             if (
                 field != '__mapper__' and
                 field not in RESERVED_KEYWORDS and
@@ -191,28 +193,18 @@ class QueryBuilder(object):
         ]
 
     def build_attrs_and_relationships(self, model, fields, from_obj):
-        json_fields = []
-        attrs = self.build_attributes(
-            model,
-            fields=fields,
-            from_obj=from_obj
+        parts = {
+            'attributes': self.build_attributes(model, fields, from_obj),
+            'relationships': self.build_relationships(model, fields, from_obj)
+        }
+        return sum(
+            (
+                [s(key), sa.func.json_build_object(*values)]
+                for key, values in parts.items()
+                if values
+            ),
+            []
         )
-        json_relationships = self.build_relationships(model, fields, from_obj)
-
-        if attrs:
-            json_fields.extend([
-                s('attributes'),
-                sa.func.json_build_object(*attrs)
-            ])
-
-        if json_relationships:
-            json_fields.extend([
-                s('relationships'),
-                sa.func.json_build_object(
-                    *json_relationships
-                )
-            ])
-        return json_fields
 
     def build_relationship(self, model, fields, relationship, from_obj):
         cls = relationship.mapper.class_
@@ -505,26 +497,34 @@ class QueryBuilder(object):
             )
         return query
 
+    def build_included_union(self, model, fields, include, from_obj):
+        selects = [
+            self.build_single_included(model, fields, subpath, from_obj)
+            for path in include
+            for subpath in subpaths(path)
+        ]
+
+        union_select = union(*selects).alias()
+        return sa.select(
+            [union_select.c.included],
+            from_obj=union_select
+        ).order_by(
+            union_select.c.included[s('type')],
+            union_select.c.included[s('id')]
+        ).correlate(from_obj)
+
     def build_included(self, model, fields, include, from_obj):
         if include:
             from_obj = get_selectable(from_obj).alias()
-            selects = [
-                self.build_single_included(model, fields, subpath, from_obj)
-                for path in include
-                for subpath in subpaths(path)
-            ]
-
-            union_select = union(*selects).alias()
-            subquery = sa.select(
-                [union_select.c.included],
-                from_obj=union_select
-            ).order_by(
-                union_select.c.included[s('type')],
-                union_select.c.included[s('id')]
-            ).correlate(get_selectable(from_obj)).alias()
+            included_union = self.build_included_union(
+                model,
+                fields,
+                include,
+                from_obj
+            ).alias()
             array_query = sa.select(
-                [sa.func.array_agg(subquery.c.included)],
-                from_obj=subquery
+                [sa.func.array_agg(included_union.c.included)],
+                from_obj=included_union
             )
             query = sa.select(
                 [array_query.as_scalar()],
