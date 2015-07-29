@@ -46,7 +46,6 @@ setup(
     ),
     long_description=__doc__,
     packages=find_packages('.'),
-    py_modules=['sqlalchemy_json_api'],
     zip_safe=False,
     include_package_data=True,
     platforms='any',
