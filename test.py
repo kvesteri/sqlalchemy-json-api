@@ -1220,3 +1220,10 @@ class TestSelectOne(object):
                 'type': 'users'
             }
         }
+
+    def test_empty_result(self, query_builder, session, user_cls):
+        query = query_builder.select_one(
+            user_cls,
+            99,
+        )
+        assert session.execute(query).scalar() == {'data': None}
