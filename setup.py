@@ -35,7 +35,7 @@ extras_require = {
 
 
 setup(
-    name='sqlalchemy_json_api',
+    name='SQLAlchemy-JSON-API',
     version=get_version(),
     url='https://github.com/kvesteri/sqlalchemy-json-api',
     license='BSD',
