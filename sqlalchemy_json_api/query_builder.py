@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSON, JSONB
@@ -27,13 +29,14 @@ from .utils import (
     subpaths
 )
 
+Parameters = namedtuple('Parameters', ['fields', 'include', 'sort'])
+
 json_array = sa.cast(
     postgresql.array([], type_=JSON), postgresql.ARRAY(JSON)
 )
 jsonb_array = sa.cast(
     postgresql.array([], type_=JSONB), postgresql.ARRAY(JSONB)
 )
-
 
 RESERVED_KEYWORDS = (
     'id',
@@ -81,102 +84,6 @@ class QueryBuilder(object):
                     )
                 )
 
-    def validate_column(self, field, column):
-        # Check that given column is an actual Column object and not for
-        # example select expression
-        if isinstance(column, sa.Column):
-            if column.foreign_keys:
-                raise InvalidField(
-                    "Field '{0}' is invalid. The underlying column "
-                    "'{1}' has foreign key. You can't include foreign key "
-                    "attributes. Consider including relationship "
-                    "attributes.".format(
-                        field, column.key
-                    )
-                )
-
-    def is_relationship_field(self, model, field):
-        return field in get_mapper(model).relationships.keys()
-
-    def validate_fields(self, model, fields, from_obj):
-        selectable_descriptors = get_all_descriptors(from_obj)
-        for field in fields:
-            if field in get_hybrid_properties(model):
-                continue
-            if field not in selectable_descriptors.keys():
-                raise UnknownField(
-                    "Unknown field '{0}'. Given selectable does not have "
-                    "descriptor named '{0}'.".format(field)
-                )
-            columns = get_descriptor_columns(
-                model,
-                selectable_descriptors[field]
-            )
-            for column in columns:
-                self.validate_column(field, column)
-
-    def is_relationship_descriptor(self, descriptor):
-        return (
-            isinstance(descriptor, InstrumentedAttribute) and
-            isinstance(descriptor.property, sa.orm.RelationshipProperty)
-        )
-
-    def should_skip_columnar_descriptor(self, from_obj, descriptor):
-        columns = get_descriptor_columns(from_obj, descriptor)
-        return (len(columns) == 1 and columns[0].foreign_keys)
-
-    def get_adapted_descriptors(self, model, from_obj):
-        return (
-            get_all_descriptors(from_obj).items() +
-            [
-                (key, ClauseAdapter(from_obj).traverse(getattr(model, key)))
-                for key in get_hybrid_properties(model).keys()
-            ]
-        )
-
-    def get_all_fields(self, model, from_obj):
-        return [
-            field
-            for field, descriptor
-            in self.get_adapted_descriptors(model, from_obj)
-            if (
-                field != '__mapper__' and
-                field not in RESERVED_KEYWORDS and
-                not self.is_relationship_descriptor(descriptor) and
-                not self.should_skip_columnar_descriptor(from_obj, descriptor)
-            )
-        ]
-
-    def get_model_fields(self, model, fields, from_obj):
-        model_key = self.get_model_alias(model)
-
-        if not fields or model_key not in fields:
-            model_fields = self.get_all_fields(model, from_obj)
-        else:
-            model_fields = [
-                field for field in fields[model_key]
-                if not self.is_relationship_field(model, field)
-            ]
-            self.validate_fields(model, model_fields, from_obj)
-        return model_fields
-
-    def adapt_attribute(self, attr_name, model, from_obj):
-        cols = get_attrs(from_obj)
-        hybrids = get_hybrid_properties(model).keys()
-        if attr_name in hybrids:
-            return ClauseAdapter(from_obj).traverse(getattr(model, attr_name))
-        else:
-            return getattr(cols, attr_name)
-
-    def build_attributes(self, model, fields, from_obj):
-        return sum(
-            (
-                [s(key), self.adapt_attribute(key, model, from_obj)]
-                for key in self.get_model_fields(model, fields, from_obj)
-            ),
-            []
-        )
-
     def get_model_alias(self, model):
         if isinstance(model, sa.orm.util.AliasedClass):
             key = sa.inspect(model).mapper.class_
@@ -193,120 +100,6 @@ class QueryBuilder(object):
             s('type'),
             s(model_alias),
         ]
-
-    def build_attrs_and_relationships(self, model, fields, from_obj):
-        parts = {
-            'attributes': self.build_attributes(model, fields, from_obj),
-            'relationships': self.build_relationships(model, fields, from_obj)
-        }
-        return sum(
-            (
-                [s(key), sa.func.json_build_object(*values)]
-                for key, values in parts.items()
-                if values
-            ),
-            []
-        )
-
-    def build_relationship(self, model, fields, relationship, from_obj):
-        cls = relationship.mapper.class_
-        alias = sa.orm.aliased(cls)
-        relationship_attrs = self.build_resource_identifier(alias, alias)
-        func = sa.func.json_build_object(*relationship_attrs).label(
-            'json_object'
-        )
-        query = select_correlated_expression(
-            model,
-            func,
-            relationship.key,
-            alias,
-            get_selectable(from_obj),
-            order_by=relationship.order_by
-        ).alias('relationships')
-        if relationship.uselist:
-            query = sa.select([
-                sa.func.coalesce(
-                    sa.func.array_agg(query.c.json_object),
-                    json_array
-                )
-            ]).select_from(query)
-
-        return [
-            s(relationship.key),
-            sa.func.json_build_object(
-                s('data'),
-                query.as_scalar()
-            )
-        ]
-
-    def get_relationship_properties(self, model, fields):
-        model_alias = self.get_model_alias(model)
-        if model_alias not in fields:
-            return list(get_mapper(model).relationships.values())
-        else:
-            return [
-                get_mapper(model).relationships[field]
-                for field in fields[model_alias]
-                if field in get_mapper(model).relationships.keys()
-            ]
-
-    def build_relationships(self, model, fields, from_obj):
-        return sum(
-            (
-                self.build_relationship(model, fields, relationship, from_obj)
-                for relationship
-                in self.get_relationship_properties(model, fields)
-            ),
-            []
-        )
-
-    def build_data_expr(self, model, fields, include, from_obj):
-        json_fields = self.build_resource_identifier(model, from_obj)
-        json_fields.extend(
-            self.build_attrs_and_relationships(
-                model,
-                fields,
-                from_obj
-            )
-        )
-        return sa.func.json_build_object(*json_fields).label('data')
-
-    def build_data(self, model, fields, include, sort, from_obj):
-        expr = self.build_data_expr(
-            model,
-            fields,
-            include,
-            from_obj
-        )
-        query = sa.select([expr], from_obj=from_obj)
-        if sort is not None:
-            query = self.apply_sort(query, from_obj, sort)
-        return query
-
-    def apply_sort(self, query, from_obj, sort):
-        for param in sort:
-            query = query.order_by(
-                sa.desc(getattr(from_obj.c, param[1:]))
-                if param[0] == '-' else
-                getattr(from_obj.c, param)
-            )
-        return query
-
-    def build_data_array(self, model, fields, include, sort, from_obj):
-        data_query = self.build_data(
-            model,
-            fields,
-            include,
-            sort,
-            from_obj
-        ).alias()
-        return sa.select(
-            [sa.func.coalesce(
-                sa.func.array_agg(data_query.c.data),
-                json_array
-            )],
-            from_obj=data_query
-        ).correlate(from_obj)
 
     def validate_model(self, model):
         if model not in self.inversed_model_mapping:
@@ -476,27 +269,8 @@ class QueryBuilder(object):
         if fields is None:
             fields = {}
 
-        data_query = (
-            self.build_data_array(model, fields, include, sort, from_obj)
-            if multiple else
-            self.build_data(
-                model,
-                fields,
-                include,
-                sort,
-                from_obj
-            )
-        )
-        from_args = [data_query.as_scalar().label('data')]
-
-        if include is not None:
-            included_query = self.build_included(
-                model,
-                fields,
-                include,
-                from_obj
-            )
-            from_args.append(included_query.as_scalar().label('included'))
+        params = Parameters(fields=fields, include=include, sort=sort)
+        from_args = self._get_from_args(model, from_obj, params, multiple)
 
         main_json_query = sa.select(from_args).alias('main_json_query')
 
@@ -506,54 +280,263 @@ class QueryBuilder(object):
         )
         return query
 
-    def build_single_included_fields(self, alias, fields):
-        cls_key = self.get_model_alias(alias)
-        json_fields = self.build_resource_identifier(alias, alias)
-        if cls_key in fields:
-            json_fields.extend(
-                self.build_attrs_and_relationships(
-                    alias,
-                    fields,
-                    sa.inspect(alias).selectable
-                )
-            )
-        return json_fields
-
-    def build_single_included(self, model, fields, path, from_obj):
-        relationships = path_to_relationships(path, model)
-
-        cls = relationships[-1].mapper.class_
-        alias = sa.orm.aliased(cls)
-
-        func = sa.cast(
-            sa.func.json_build_object(
-                *self.build_single_included_fields(alias, fields)
-            ),
-            JSONB
-        ).label('included')
-
-        query = select_correlated_expression(
-            model,
-            func,
-            path,
-            alias,
-            get_selectable(from_obj)
+    def _get_from_args(self, model, from_obj, params, multiple):
+        data_expr = DataExpression(self, model, from_obj)
+        data_query = (
+            data_expr.build_data_array(params)
+            if multiple else
+            data_expr.build_data(params)
         )
-        if cls is model:
-            query = query.where(
-                alias.id.notin_(
-                    sa.select(
-                        [get_attrs(from_obj).id],
-                        from_obj=from_obj
+        from_args = [data_query.as_scalar().label('data')]
+
+        if params.include is not None:
+            include_expr = IncludeExpression(
+                self,
+                model,
+                get_selectable(from_obj).alias()
+            )
+            included_query = include_expr.build_included(params)
+            from_args.append(included_query.as_scalar().label('included'))
+        return from_args
+
+
+class Expression(object):
+    def __init__(self, query_builder, model, from_obj):
+        self.query_builder = query_builder
+        self.model = model
+        self.from_obj = from_obj
+
+
+class AttributesExpression(Expression):
+    @property
+    def all_fields(self):
+        return [
+            field
+            for field, descriptor
+            in self.adapted_descriptors
+            if (
+                field != '__mapper__' and
+                field not in RESERVED_KEYWORDS and
+                not self.is_relationship_descriptor(descriptor) and
+                not self.should_skip_columnar_descriptor(descriptor)
+            )
+        ]
+
+    def should_skip_columnar_descriptor(self, descriptor):
+        columns = get_descriptor_columns(self.from_obj, descriptor)
+        return (len(columns) == 1 and columns[0].foreign_keys)
+
+    @property
+    def adapted_descriptors(self):
+        return (
+            get_all_descriptors(self.from_obj).items() +
+            [
+                (
+                    key,
+                    ClauseAdapter(self.from_obj).traverse(
+                        getattr(self.model, key)
                     )
                 )
+                for key in get_hybrid_properties(self.model).keys()
+            ]
+        )
+
+    def adapt_attribute(self, attr_name):
+        cols = get_attrs(self.from_obj)
+        hybrids = get_hybrid_properties(self.model).keys()
+        if attr_name in hybrids:
+            return ClauseAdapter(self.from_obj).traverse(
+                getattr(self.model, attr_name)
+            )
+        else:
+            return getattr(cols, attr_name)
+
+    def is_relationship_field(self, field):
+        return field in get_mapper(self.model).relationships.keys()
+
+    def is_relationship_descriptor(self, descriptor):
+        return (
+            isinstance(descriptor, InstrumentedAttribute) and
+            isinstance(descriptor.property, sa.orm.RelationshipProperty)
+        )
+
+    def validate_column(self, field, column):
+        # Check that given column is an actual Column object and not for
+        # example select expression
+        if isinstance(column, sa.Column):
+            if column.foreign_keys:
+                raise InvalidField(
+                    "Field '{0}' is invalid. The underlying column "
+                    "'{1}' has foreign key. You can't include foreign key "
+                    "attributes. Consider including relationship "
+                    "attributes.".format(
+                        field, column.key
+                    )
+                )
+
+    def validate_field(self, field, descriptors):
+        if field not in descriptors.keys():
+            raise UnknownField(
+                "Unknown field '{0}'. Given selectable does not have "
+                "descriptor named '{0}'.".format(field)
+            )
+        columns = get_descriptor_columns(self.model, descriptors[field])
+        for column in columns:
+            self.validate_column(field, column)
+
+    def validate_fields(self, fields):
+        descriptors = get_all_descriptors(self.from_obj)
+        for field in fields:
+            if field in get_hybrid_properties(self.model):
+                continue
+            self.validate_field(field, descriptors)
+
+    def get_model_fields(self, fields):
+        model_key = self.query_builder.get_model_alias(self.model)
+
+        if not fields or model_key not in fields:
+            model_fields = self.all_fields
+        else:
+            model_fields = [
+                field for field in fields[model_key]
+                if not self.is_relationship_field(field)
+            ]
+            self.validate_fields(model_fields)
+        return model_fields
+
+    def build_attributes(self, fields):
+        return sum(
+            (
+                [s(key), self.adapt_attribute(key)]
+                for key in self.get_model_fields(fields)
+            ),
+            []
+        )
+
+
+class RelationshipsExpression(Expression):
+    def build_relationships(self, fields):
+        return sum(
+            (
+                self.build_relationship(relationship)
+                for relationship
+                in self.get_relationship_properties(fields)
+            ),
+            []
+        )
+
+    def build_relationship_data(self, relationship, alias):
+        identifier = self.query_builder.build_resource_identifier(
+            alias,
+            alias
+        )
+        expr = sa.func.json_build_object(*identifier).label('json_object')
+        query = select_correlated_expression(
+            self.model,
+            expr,
+            relationship.key,
+            alias,
+            get_selectable(self.from_obj),
+            order_by=relationship.order_by
+        ).alias('relationships')
+        return query
+
+    def build_relationship_data_array(self, relationship, alias):
+        query = self.build_relationship_data(relationship, alias)
+        return sa.select([
+            sa.func.coalesce(
+                sa.func.array_agg(query.c.json_object),
+                json_array
+            )
+        ]).select_from(query)
+
+    def build_relationship(self, relationship):
+        cls = relationship.mapper.class_
+        alias = sa.orm.aliased(cls)
+        query = (
+            self.build_relationship_data_array(relationship, alias)
+            if relationship.uselist else
+            self.build_relationship_data(relationship, alias)
+        )
+        return [
+            s(relationship.key),
+            sa.func.json_build_object(
+                s('data'),
+                query.as_scalar()
+            )
+        ]
+
+    def get_relationship_properties(self, fields):
+        model_alias = self.query_builder.get_model_alias(self.model)
+        mapper = get_mapper(self.model)
+        if model_alias not in fields:
+            return list(mapper.relationships.values())
+        else:
+            return [
+                mapper.relationships[field]
+                for field in fields[model_alias]
+                if field in mapper.relationships.keys()
+            ]
+
+
+class DataExpression(Expression):
+    def build_attrs_and_relationships(self, fields):
+        args = (self.query_builder, self.model, self.from_obj)
+        parts = {
+            'attributes': AttributesExpression(*args).build_attributes(fields),
+            'relationships': RelationshipsExpression(
+                *args
+            ).build_relationships(fields)
+        }
+        return sum(
+            (
+                [s(key), sa.func.json_build_object(*values)]
+                for key, values in parts.items()
+                if values
+            ),
+            []
+        )
+
+    def build_data_expr(self, params):
+        json_fields = self.query_builder.build_resource_identifier(
+            self.model,
+            self.from_obj
+        )
+        json_fields.extend(self.build_attrs_and_relationships(params.fields))
+        return sa.func.json_build_object(*json_fields).label('data')
+
+    def build_data(self, params):
+        expr = self.build_data_expr(params)
+        query = sa.select([expr], from_obj=self.from_obj)
+        if params.sort is not None:
+            query = self.apply_sort(query, params.sort)
+        return query
+
+    def apply_sort(self, query, sort):
+        for param in sort:
+            query = query.order_by(
+                sa.desc(getattr(self.from_obj.c, param[1:]))
+                if param[0] == '-' else
+                getattr(self.from_obj.c, param)
             )
         return query
 
-    def build_included_union(self, model, fields, include, from_obj):
+    def build_data_array(self, params):
+        data_query = self.build_data(params).alias()
+        return sa.select(
+            [sa.func.coalesce(
+                sa.func.array_agg(data_query.c.data),
+                json_array
+            )],
+            from_obj=data_query
+        ).correlate(self.from_obj)
+
+
+class IncludeExpression(Expression):
+    def build_included_union(self, params):
         selects = [
-            self.build_single_included(model, fields, subpath, from_obj)
-            for path in include
+            self.build_single_included(params.fields, subpath)
+            for path in params.include
             for subpath in subpaths(path)
         ]
 
@@ -564,30 +547,70 @@ class QueryBuilder(object):
         ).order_by(
             union_select.c.included[s('type')],
             union_select.c.included[s('id')]
-        ).correlate(from_obj)
+        ).correlate(self.from_obj)
 
-    def build_included(self, model, fields, include, from_obj):
-        if include:
-            from_obj = get_selectable(from_obj).alias()
-            included_union = self.build_included_union(
-                model,
-                fields,
-                include,
-                from_obj
-            ).alias()
-            array_query = sa.select(
-                [sa.func.array_agg(included_union.c.included)],
-                from_obj=included_union
+    def build_included(self, params):
+        included_union = self.build_included_union(params).alias()
+        array_query = sa.select(
+            [sa.func.array_agg(included_union.c.included)],
+            from_obj=included_union
+        )
+        query = sa.select(
+            [array_query.as_scalar()],
+            from_obj=self.from_obj
+        )
+        return sa.select(
+            [
+                sa.func.coalesce(
+                    query.as_scalar(),
+                    jsonb_array
+                ).label('included')
+            ]
+        )
+
+    def build_single_included_fields(self, alias, fields):
+        cls_key = self.query_builder.get_model_alias(alias)
+        json_fields = self.query_builder.build_resource_identifier(
+            alias,
+            alias
+        )
+        if cls_key in fields:
+            data_expr = DataExpression(
+                self.query_builder,
+                alias,
+                sa.inspect(alias).selectable
             )
-            query = sa.select(
-                [array_query.as_scalar()],
-                from_obj=from_obj
+            json_fields.extend(data_expr.build_attrs_and_relationships(fields))
+        return json_fields
+
+    def build_included_json_object(self, alias, fields):
+        return sa.cast(
+            sa.func.json_build_object(
+                *self.build_single_included_fields(alias, fields)
+            ),
+            JSONB
+        ).label('included')
+
+    def build_single_included(self, fields, path):
+        relationships = path_to_relationships(path, self.model)
+
+        cls = relationships[-1].mapper.class_
+        alias = sa.orm.aliased(cls)
+        expr = self.build_included_json_object(alias, fields)
+        query = select_correlated_expression(
+            self.model,
+            expr,
+            path,
+            alias,
+            get_selectable(self.from_obj)
+        )
+        if cls is self.model:
+            query = query.where(
+                alias.id.notin_(
+                    sa.select(
+                        [get_attrs(self.from_obj).id],
+                        from_obj=self.from_obj
+                    )
+                )
             )
-            return sa.select(
-                [
-                    sa.func.coalesce(
-                        query.as_scalar(),
-                        jsonb_array
-                    ).label('included')
-                ]
-            )
+        return query
