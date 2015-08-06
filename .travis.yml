@@ -15,6 +15,6 @@ install:
   - pip install -e .[test]
 
 script:
-  - isort --recursive --diff sqlalchemy_json_api test.py && isort --recursive --check-only sqlalchemy_json_api test.py
-  - flake8 sqlalchemy_json_api test.py
-  - py.test test.py
+  - isort --recursive --diff sqlalchemy_json_api tests && isort --recursive --check-only sqlalchemy_json_api tests
+  - flake8 sqlalchemy_json_api tests
+  - py.test tests

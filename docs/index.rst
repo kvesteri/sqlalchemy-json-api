@@ -10,5 +10,6 @@ Contents:
    quickstart
    fields
    compound_documents
+   sorting
    filtering
    api

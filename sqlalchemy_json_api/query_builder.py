@@ -271,24 +271,42 @@ class QueryBuilder(object):
         )
         return sa.func.json_build_object(*json_fields).label('data')
 
-    def build_data(self, model, fields, include, from_obj):
+    def build_data(self, model, fields, include, sort, from_obj):
         expr = self.build_data_expr(
             model,
             fields,
             include,
             from_obj
         )
-        return sa.select([expr], from_obj=from_obj)
+        query = sa.select([expr], from_obj=from_obj)
+        if sort is not None:
+            query = self.apply_sort(query, from_obj, sort)
+        return query
 
-    def build_data_array(self, model, fields, include, from_obj):
-        data_query = self.build_data(model, fields, include, from_obj).alias()
+    def apply_sort(self, query, from_obj, sort):
+        for param in sort:
+            query = query.order_by(
+                sa.desc(getattr(from_obj.c, param[1:]))
+                if param[0] == '-' else
+                getattr(from_obj.c, param)
+            )
+        return query
+
+    def build_data_array(self, model, fields, include, sort, from_obj):
+        data_query = self.build_data(
+            model,
+            fields,
+            include,
+            sort,
+            from_obj
+        ).alias()
         return sa.select(
             [sa.func.coalesce(
                 sa.func.array_agg(data_query.c.data),
                 json_array
             )],
             from_obj=data_query
-        ).correlate(from_obj).as_scalar().label('data')
+        ).correlate(from_obj)
 
     def validate_model(self, model):
         if model not in self.inversed_model_mapping:
@@ -309,7 +327,14 @@ class QueryBuilder(object):
                     )
                 )
 
-    def select(self, model, fields=None, include=None, from_obj=None):
+    def select(
+        self,
+        model,
+        fields=None,
+        include=None,
+        sort=None,
+        from_obj=None
+    ):
         """
         Builds a query for selecting multiple resource instances.
 
@@ -324,6 +349,21 @@ class QueryBuilder(object):
                 )
             )
 
+        Results can be sorted.
+
+        ::
+
+            # Sort by id in descending order
+            query = query_builder.select(
+                Article,
+                sort=['-id']
+            )
+
+            # Sort by name and id in ascending order
+            query = query_builder.select(
+                Article,
+                sort=['name', 'id']
+            )
 
         :param model:
             The root model to build the select query from.
@@ -332,6 +372,8 @@ class QueryBuilder(object):
             lists of model descriptor names.
         :param include:
             List of dot-separated relationship paths.
+        :param sort:
+            List of attributes to apply as an order by for the root model.
         :param from_obj:
             A SQLAlchemy selectable (for example a Query object) to select the
             query results from.
@@ -360,7 +402,13 @@ class QueryBuilder(object):
 
         from_obj = from_obj.subquery()
 
-        return self._select(model, from_obj, fields, include)
+        return self._select(
+            model,
+            from_obj,
+            fields=fields,
+            include=include,
+            sort=sort
+        )
 
     def select_one(self, model, id, fields=None, include=None, from_obj=None):
         """
@@ -421,22 +469,25 @@ class QueryBuilder(object):
         from_obj,
         fields=None,
         include=None,
+        sort=None,
         multiple=True
     ):
         self.validate_field_keys(fields)
         if fields is None:
             fields = {}
 
-        from_args = [
-            self.build_data_array(model, fields, include, from_obj)
+        data_query = (
+            self.build_data_array(model, fields, include, sort, from_obj)
             if multiple else
             self.build_data(
                 model,
                 fields,
                 include,
+                sort,
                 from_obj
-            ).as_scalar().label('data')
-        ]
+            )
+        )
+        from_args = [data_query.as_scalar().label('data')]
 
         if include is not None:
             included_query = self.build_included(
