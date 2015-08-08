@@ -48,6 +48,14 @@ RESERVED_KEYWORDS = (
 )
 
 
+class ResourceRegistry(object):
+    def __init__(self, model_mapping):
+        self.by_type = model_mapping
+        self.by_model_class = dict(
+            (value, key) for key, value in model_mapping.items()
+        )
+
+
 class QueryBuilder(object):
     """
     ::
@@ -73,10 +81,7 @@ class QueryBuilder(object):
     """
     def __init__(self, model_mapping, base_url=None):
         self.validate_model_mapping(model_mapping)
-        self.model_mapping = model_mapping
-        self.inversed_model_mapping = dict(
-            (value, key) for key, value in self.model_mapping.items()
-        ) if model_mapping else None
+        self.resource_registry = ResourceRegistry(model_mapping)
         self.base_url = base_url
 
     def validate_model_mapping(self, model_mapping):
@@ -90,11 +95,14 @@ class QueryBuilder(object):
 
     def get_model_alias(self, model):
         if isinstance(model, sa.orm.util.AliasedClass):
-            key = sa.inspect(model).mapper.class_
-        else:
-            key = model
-        self.validate_model(key)
-        return self.inversed_model_mapping[key]
+            model = sa.inspect(model).mapper.class_
+        try:
+            return self.resource_registry.by_model_class[model]
+        except KeyError:
+            raise UnknownModel(
+                'Unknown model given. Could not find model %r from given '
+                'model mapping.' % model
+            )
 
     def get_id(self, from_obj):
         return cast_if(get_attrs(from_obj).id, sa.String)
@@ -108,16 +116,11 @@ class QueryBuilder(object):
             s(model_alias),
         ]
 
-    def validate_model(self, model):
-        if model not in self.inversed_model_mapping:
-            raise UnknownModel(
-                'Unknown model given. Could not find model %r from given '
-                'model mapping.' % model
-            )
-
     def validate_field_keys(self, fields):
         if fields:
-            unknown_keys = set(fields) - set(self.model_mapping.keys())
+            unknown_keys = (
+                set(fields) - set(self.resource_registry.by_type.keys())
+            )
             if unknown_keys:
                 raise UnknownFieldKey(
                     'Unknown field keys given. Could not find {0} {1} from '
