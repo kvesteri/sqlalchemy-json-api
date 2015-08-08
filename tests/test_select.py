@@ -310,7 +310,23 @@ class TestQueryBuilderSelect(object):
                     }],
                     'included': [{
                         'type': 'categories',
-                        'id': '1'
+                        'id': '1',
+                        'attributes': {
+                            'created_at': None,
+                            'name': 'Some category'
+                        },
+                        'relationships': {
+                            'articles': {
+                                'data': [{'type': 'articles', 'id': '1'}]
+                            },
+                            'subcategories': {
+                                'data': [
+                                    {'type': 'categories', 'id': '2'},
+                                    {'type': 'categories', 'id': '4'}
+                                ]
+                            },
+                            'parent': {'data': None}
+                        }
                     }]
                 }
             ),

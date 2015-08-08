@@ -67,13 +67,17 @@ class QueryBuilder(object):
         resource identifier types. So for example model such as
         LeagueInvitiation should have an equivalent key of
         'league-invitations'.
+    :param base_url:
+        Base url to be used for building JSON API compatible links objects. By
+        default this is `None` indicating that no link objects will be built.
     """
-    def __init__(self, model_mapping):
+    def __init__(self, model_mapping, base_url=None):
         self.validate_model_mapping(model_mapping)
         self.model_mapping = model_mapping
         self.inversed_model_mapping = dict(
             (value, key) for key, value in self.model_mapping.items()
         ) if model_mapping else None
+        self.base_url = base_url
 
     def validate_model_mapping(self, model_mapping):
         for model in model_mapping.values():
@@ -92,11 +96,14 @@ class QueryBuilder(object):
         self.validate_model(key)
         return self.inversed_model_mapping[key]
 
+    def get_id(self, from_obj):
+        return cast_if(get_attrs(from_obj).id, sa.String)
+
     def build_resource_identifier(self, model, from_obj):
         model_alias = self.get_model_alias(model)
         return [
             s('id'),
-            cast_if(get_attrs(from_obj).id, sa.String),
+            self.get_id(from_obj),
             s('type'),
             s(model_alias),
         ]
@@ -306,6 +313,10 @@ class Expression(object):
         self.model = model
         self.from_obj = from_obj
 
+    @property
+    def args(self):
+        return [self.query_builder, self.model, self.from_obj]
+
 
 class AttributesExpression(Expression):
     @property
@@ -458,12 +469,18 @@ class RelationshipsExpression(Expression):
             if relationship.uselist else
             self.build_relationship_data(relationship, alias)
         )
+        args = [s('data'), query.as_scalar()]
+        if self.query_builder.base_url:
+            links = LinksExpression(*self.args).build_relationship_links(
+                relationship.key
+            )
+            args.extend([
+                s('links'),
+                sa.func.json_build_object(*links)
+            ])
         return [
             s(relationship.key),
-            sa.func.json_build_object(
-                s('data'),
-                query.as_scalar()
-            )
+            sa.func.json_build_object(*args)
         ]
 
     def get_relationship_properties(self, fields):
@@ -479,14 +496,41 @@ class RelationshipsExpression(Expression):
             ]
 
 
+class LinksExpression(Expression):
+    def build_link(self, postfix=None):
+        args = [
+            s(self.query_builder.base_url),
+            s(self.query_builder.get_model_alias(self.model)),
+            s('/'),
+            self.query_builder.get_id(self.from_obj),
+        ]
+        if postfix is not None:
+            args.append(postfix)
+        return sa.func.concat(*args)
+
+    def build_links(self):
+        if self.query_builder.base_url:
+            return [s('self'), self.build_link()]
+
+    def build_relationship_links(self, key):
+        if self.query_builder.base_url:
+            return [
+                s('self'),
+                self.build_link(s('/relationships/{0}'.format(key))),
+                s('related'),
+                self.build_link(s('/{0}'.format(key)))
+            ]
+
+
 class DataExpression(Expression):
-    def build_attrs_and_relationships(self, fields):
+    def build_attrs_relationships_and_links(self, fields):
         args = (self.query_builder, self.model, self.from_obj)
         parts = {
             'attributes': AttributesExpression(*args).build_attributes(fields),
             'relationships': RelationshipsExpression(
                 *args
-            ).build_relationships(fields)
+            ).build_relationships(fields),
+            'links': LinksExpression(*args).build_links()
         }
         return sum(
             (
@@ -502,7 +546,9 @@ class DataExpression(Expression):
             self.model,
             self.from_obj
         )
-        json_fields.extend(self.build_attrs_and_relationships(params.fields))
+        json_fields.extend(
+            self.build_attrs_relationships_and_links(params.fields)
+        )
         return sa.func.json_build_object(*json_fields).label('data')
 
     def build_data(self, params):
@@ -569,18 +615,19 @@ class IncludeExpression(Expression):
         )
 
     def build_single_included_fields(self, alias, fields):
-        cls_key = self.query_builder.get_model_alias(alias)
+        #cls_key = self.query_builder.get_model_alias(alias)
         json_fields = self.query_builder.build_resource_identifier(
             alias,
             alias
         )
-        if cls_key in fields:
-            data_expr = DataExpression(
-                self.query_builder,
-                alias,
-                sa.inspect(alias).selectable
-            )
-            json_fields.extend(data_expr.build_attrs_and_relationships(fields))
+        data_expr = DataExpression(
+            self.query_builder,
+            alias,
+            sa.inspect(alias).selectable
+        )
+        json_fields.extend(
+            data_expr.build_attrs_relationships_and_links(fields)
+        )
         return json_fields
 
     def build_included_json_object(self, alias, fields):

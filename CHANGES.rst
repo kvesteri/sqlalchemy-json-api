@@ -8,6 +8,7 @@ Here you can see the full list of changes between each SQLAlchemy-JSON-API relea
 ^^^^^^^^^^^^^^^^
 
 - Added sort parameter to select method
+- Added support for links objects
 
 
 0.1 (2015-07-29)
