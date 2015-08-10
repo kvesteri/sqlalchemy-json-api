@@ -126,6 +126,77 @@ class QueryBuilder(object):
                     )
                 )
 
+    def select_related(
+        self,
+        obj,
+        relationship_key,
+        fields=None,
+        include=None,
+        sort=None,
+        from_obj=None
+    ):
+        """
+        Builds a query for selecting related resources::
+
+            article = session.query(Article).get(1)
+
+            query = query_builder.select_related(
+                article,
+                'category'
+            )
+
+
+        :raises sqlalchemy_json_api.IdPropertyNotFound:
+            If one of the referenced models does not have an id property
+
+        :raises sqlalchemy_json_api.InvalidField:
+            If trying to include foreign key field or if the field is reserved
+            keyword.
+
+        :raises sqlalchemy_json_api.UnknownModel:
+            If the model mapping of this QueryBuilder does not contain the
+            given root model.
+
+        :raises sqlalchemy_json_api.UnknownField:
+            If the given selectable does not contain given field.
+
+        :raises sqlalchemy_json_api.UnknownFieldKey:
+            If the given field list key is not present in the model mapping of
+            this query builder.
+
+        .. versionadded: 0.2
+        """
+        mapper = sa.inspect(obj.__class__)
+        prop = mapper.relationships[relationship_key]
+        model = prop.mapper.class_
+
+        if from_obj is None:
+            from_obj = sa.orm.query.Query(model)
+        from_obj = from_obj.filter(prop._with_parent(obj))
+        if prop.order_by:
+            from_obj = from_obj.order_by(*prop.order_by)
+
+        from_obj = from_obj.subquery()
+
+        links = (
+            LinksExpression(
+                self,
+                prop.parent.class_,
+                obj
+            ).build_relationship_links(prop.key)
+            if self.base_url is not None else None
+        )
+        return self._select(
+            model,
+            from_obj,
+            fields=fields,
+            include=include,
+            sort=sort,
+            multiple=prop.uselist,
+            relationship=prop,
+            links=links
+        )
+
     def select(
         self,
         model,
@@ -135,9 +206,7 @@ class QueryBuilder(object):
         from_obj=None
     ):
         """
-        Builds a query for selecting multiple resource instances.
-
-        ::
+        Builds a query for selecting multiple resource instances::
 
             query = query_builder.select(
                 Article,
@@ -148,9 +217,7 @@ class QueryBuilder(object):
                 )
             )
 
-        Results can be sorted.
-
-        ::
+        Results can be sorted::
 
             # Sort by id in descending order
             query = query_builder.select(
@@ -271,14 +338,27 @@ class QueryBuilder(object):
         fields=None,
         include=None,
         sort=None,
-        multiple=True
+        links=None,
+        multiple=True,
+        relationship=None
     ):
         self.validate_field_keys(fields)
         if fields is None:
             fields = {}
 
-        params = Parameters(fields=fields, include=include, sort=sort)
-        from_args = self._get_from_args(model, from_obj, params, multiple)
+        params = Parameters(
+            fields=fields,
+            include=include,
+            sort=sort
+        )
+        from_args = self._get_from_args(
+            model,
+            from_obj,
+            params,
+            multiple,
+            relationship,
+            links
+        )
 
         main_json_query = sa.select(from_args).alias('main_json_query')
 
@@ -288,12 +368,21 @@ class QueryBuilder(object):
         )
         return query
 
-    def _get_from_args(self, model, from_obj, params, multiple):
+    def _get_from_args(
+        self,
+        model,
+        from_obj,
+        params,
+        multiple,
+        relationship,
+        links
+    ):
         data_expr = DataExpression(self, model, from_obj)
+        has_relationship = relationship is not None
         data_query = (
-            data_expr.build_data_array(params)
+            data_expr.build_data_array(params, ids_only=has_relationship)
             if multiple else
-            data_expr.build_data(params)
+            data_expr.build_data(params, ids_only=has_relationship)
         )
         from_args = [data_query.as_scalar().label('data')]
 
@@ -305,6 +394,11 @@ class QueryBuilder(object):
             )
             included_query = include_expr.build_included(params)
             from_args.append(included_query.as_scalar().label('included'))
+
+        if links:
+            from_args.append(
+                sa.func.json_build_object(*links).label('links')
+            )
         return from_args
 
 
@@ -531,7 +625,9 @@ class DataExpression(Expression):
     def build_attrs_relationships_and_links(self, fields):
         args = (self.query_builder, self.model, self.from_obj)
         parts = {
-            'attributes': AttributesExpression(*args).build_attributes(fields),
+            'attributes': AttributesExpression(*args).build_attributes(
+                fields
+            ),
             'relationships': RelationshipsExpression(
                 *args
             ).build_relationships(fields),
@@ -546,18 +642,19 @@ class DataExpression(Expression):
             []
         )
 
-    def build_data_expr(self, params):
+    def build_data_expr(self, params, ids_only=False):
         json_fields = self.query_builder.build_resource_identifier(
             self.model,
             self.from_obj
         )
-        json_fields.extend(
-            self.build_attrs_relationships_and_links(params.fields)
-        )
+        if not ids_only:
+            json_fields.extend(
+                self.build_attrs_relationships_and_links(params.fields)
+            )
         return sa.func.json_build_object(*json_fields).label('data')
 
-    def build_data(self, params):
-        expr = self.build_data_expr(params)
+    def build_data(self, params, ids_only=False):
+        expr = self.build_data_expr(params, ids_only=ids_only)
         query = sa.select([expr], from_obj=self.from_obj)
         if params.sort is not None:
             query = self.apply_sort(query, params.sort)
@@ -572,8 +669,8 @@ class DataExpression(Expression):
             )
         return query
 
-    def build_data_array(self, params):
-        data_query = self.build_data(params).alias()
+    def build_data_array(self, params, ids_only=False):
+        data_query = self.build_data(params, ids_only=ids_only).alias()
         return sa.select(
             [sa.func.coalesce(
                 sa.func.array_agg(data_query.c.data),
@@ -620,7 +717,6 @@ class IncludeExpression(Expression):
         )
 
     def build_single_included_fields(self, alias, fields):
-        #cls_key = self.query_builder.get_model_alias(alias)
         json_fields = self.query_builder.build_resource_identifier(
             alias,
             alias

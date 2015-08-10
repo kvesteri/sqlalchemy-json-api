@@ -1,0 +1,210 @@
+import pytest
+
+from sqlalchemy_json_api import QueryBuilder
+
+
+@pytest.mark.usefixtures('table_creator', 'dataset')
+class TestSelectRelated(object):
+    @pytest.mark.parametrize(
+        ('id', 'result'),
+        (
+            (
+                1,
+                {'data': [{'type': 'users', 'id': '2'}]}
+            ),
+            (
+                2,
+                {'data': [
+                    {'type': 'users', 'id': '1'},
+                    {'type': 'users', 'id': '3'},
+                    {'type': 'users', 'id': '4'}
+                ]}
+            )
+        )
+    )
+    def test_to_many_relationship(
+        self,
+        query_builder,
+        session,
+        user_cls,
+        id,
+        result
+    ):
+        query = query_builder.select_related(
+            session.query(user_cls).get(id),
+            'all_friends',
+            fields={'users': []},
+        )
+        assert session.execute(query).scalar() == result
+
+    @pytest.mark.parametrize(
+        ('id', 'result'),
+        (
+            (
+                2,
+                {'data': {'type': 'categories', 'id': '1'}}
+            ),
+            (
+                5,
+                {'data': {'type': 'categories', 'id': '3'}}
+            )
+        )
+    )
+    def test_to_one_relationship(
+        self,
+        query_builder,
+        session,
+        category_cls,
+        id,
+        result
+    ):
+        query = query_builder.select_related(
+            session.query(category_cls).get(id),
+            'parent',
+            fields={'categories': []},
+        )
+        assert session.execute(query).scalar() == result
+
+
+@pytest.mark.usefixtures('table_creator', 'dataset')
+class TestSelectRelatedWithLinks(object):
+    @pytest.fixture
+    def query_builder(self, model_mapping):
+        return QueryBuilder(model_mapping, base_url='/')
+
+    @pytest.mark.parametrize(
+        ('id', 'result'),
+        (
+            (
+                1,
+                {
+                    'data': [
+                        {
+                            'type': 'users',
+                            'id': '2',
+                        }
+                    ],
+                    'links': {
+                        'self': '/users/1/relationships/all_friends',
+                        'related': '/users/1/all_friends'
+                    }
+                }
+            ),
+            (
+                2,
+                {
+                    'data': [
+                        {
+                            'type': 'users',
+                            'id': '1',
+                        },
+                        {
+                            'type': 'users',
+                            'id': '3',
+                        },
+                        {
+                            'type': 'users',
+                            'id': '4',
+                        }
+                    ],
+                    'links': {
+                        'self': '/users/2/relationships/all_friends',
+                        'related': '/users/2/all_friends'
+                    }
+                }
+            )
+        )
+    )
+    def test_to_many_relationship(
+        self,
+        query_builder,
+        session,
+        user_cls,
+        id,
+        result
+    ):
+        query = query_builder.select_related(
+            session.query(user_cls).get(id),
+            'all_friends',
+            fields={'users': []},
+        )
+        assert session.execute(query).scalar() == result
+
+    @pytest.mark.parametrize(
+        ('id', 'result'),
+        (
+            (
+                2,
+                {
+                    'data': {
+                        'type': 'categories',
+                        'id': '1',
+                    },
+                    'links': {
+                        'self': '/categories/2/relationships/parent',
+                        'related': '/categories/2/parent'
+                    }
+                }
+            ),
+            (
+                5,
+                {
+                    'data': {
+                        'type': 'categories',
+                        'id': '3',
+                    },
+                    'links': {
+                        'self': '/categories/5/relationships/parent',
+                        'related': '/categories/5/parent'
+                    }
+                }
+            )
+        )
+    )
+    def test_to_one_parent_child_relationship(
+        self,
+        query_builder,
+        session,
+        category_cls,
+        id,
+        result
+    ):
+        query = query_builder.select_related(
+            session.query(category_cls).get(id),
+            'parent',
+            fields={'categories': []},
+        )
+        assert session.execute(query).scalar() == result
+
+    @pytest.mark.parametrize(
+        ('id', 'result'),
+        (
+            (
+                1,
+                {
+                    'data': {
+                        'type': 'categories',
+                        'id': '1',
+                    },
+                    'links': {
+                        'self': '/articles/1/relationships/category',
+                        'related': '/articles/1/category'
+                    }
+                }
+            ),
+        )
+    )
+    def test_to_one_relationship(
+        self,
+        query_builder,
+        session,
+        article_cls,
+        id,
+        result
+    ):
+        query = query_builder.select_related(
+            session.query(article_cls).get(id),
+            'category',
+            fields={'articles': []},
+        )
+        assert session.execute(query).scalar() == result
