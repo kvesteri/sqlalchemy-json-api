@@ -5,6 +5,7 @@ from sqlalchemy_json_api import (
     IdPropertyNotFound,
     InvalidField,
     QueryBuilder,
+    RESERVED_KEYWORDS,
     UnknownField,
     UnknownFieldKey,
     UnknownModel
@@ -54,6 +55,22 @@ class TestQueryBuilderSelect(object):
         assert str(e.value) == (
             "Unknown field 'bogus'. Given selectable does not have "
             "descriptor named 'bogus'."
+        )
+
+    @pytest.mark.parametrize(
+        'field',
+        RESERVED_KEYWORDS
+    )
+    def test_throws_exception_for_reserved_keyword(
+        self,
+        query_builder,
+        article_cls,
+        field
+    ):
+        with pytest.raises(InvalidField) as e:
+            query_builder.select(article_cls, fields={'articles': [field]})
+        assert str(e.value) == (
+            "Given field '{0}' is reserved keyword.".format(field)
         )
 
     def test_throws_exception_for_foreign_key_field(

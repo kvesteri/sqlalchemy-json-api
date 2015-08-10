@@ -5,6 +5,6 @@ from .exc import (  # noqa
     UnknownFieldKey,
     UnknownModel
 )
-from .query_builder import QueryBuilder  # noqa
+from .query_builder import QueryBuilder, RESERVED_KEYWORDS  # noqa
 
 __version__ = '0.1'

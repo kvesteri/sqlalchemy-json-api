@@ -41,10 +41,6 @@ jsonb_array = sa.cast(
 RESERVED_KEYWORDS = (
     'id',
     'type',
-    'links',
-    'included',
-    'attributes',
-    'relationships'
 )
 
 
@@ -186,7 +182,8 @@ class QueryBuilder(object):
             If one of the referenced models does not have an id property
 
         :raises sqlalchemy_json_api.InvalidField:
-            If trying to include foreign key field.
+            If trying to include foreign key field or if the field is reserved
+            keyword.
 
         :raises sqlalchemy_json_api.UnknownModel:
             If the model mapping of this QueryBuilder does not contain the
@@ -245,7 +242,8 @@ class QueryBuilder(object):
             If one of the referenced models does not have an id property
 
         :raises sqlalchemy_json_api.InvalidField:
-            If trying to include foreign key field.
+            If trying to include foreign key field or if the field is reserved
+            keyword.
 
         :raises sqlalchemy_json_api.UnknownModel:
             If the model mapping of this QueryBuilder does not contain the
@@ -389,6 +387,10 @@ class AttributesExpression(Expression):
                 )
 
     def validate_field(self, field, descriptors):
+        if field in RESERVED_KEYWORDS:
+            raise InvalidField(
+                "Given field '{0}' is reserved keyword.".format(field)
+            )
         if field not in descriptors.keys():
             raise UnknownField(
                 "Unknown field '{0}'. Given selectable does not have "
