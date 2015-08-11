@@ -4,7 +4,7 @@ from sqlalchemy_json_api import QueryBuilder
 
 
 @pytest.mark.usefixtures('table_creator', 'dataset')
-class TestSelectRelated(object):
+class TestSelectRelationship(object):
     @pytest.mark.parametrize(
         ('id', 'result'),
         (
@@ -30,7 +30,7 @@ class TestSelectRelated(object):
         id,
         result
     ):
-        query = query_builder.select_related(
+        query = query_builder.select_relationship(
             session.query(user_cls).get(id),
             'all_friends',
             fields={'users': []},
@@ -58,7 +58,7 @@ class TestSelectRelated(object):
         id,
         result
     ):
-        query = query_builder.select_related(
+        query = query_builder.select_relationship(
             session.query(category_cls).get(id),
             'parent',
             fields={'categories': []},
@@ -67,16 +67,20 @@ class TestSelectRelated(object):
 
 
 @pytest.mark.usefixtures('table_creator', 'dataset')
-class TestSelectRelatedWithLinks(object):
+class TestSelectRelationshipWithLinks(object):
     @pytest.fixture
     def query_builder(self, model_mapping):
         return QueryBuilder(model_mapping, base_url='/')
 
     @pytest.mark.parametrize(
-        ('id', 'result'),
+        ('id', 'links', 'result'),
         (
             (
                 1,
+                {
+                    'self': '/users/1/relationships/all_friends',
+                    'related': '/users/1/all_friends'
+                },
                 {
                     'data': [
                         {
@@ -92,6 +96,10 @@ class TestSelectRelatedWithLinks(object):
             ),
             (
                 2,
+                {
+                    'self': '/users/2/relationships/all_friends',
+                    'related': '/users/2/all_friends'
+                },
                 {
                     'data': [
                         {
@@ -121,20 +129,26 @@ class TestSelectRelatedWithLinks(object):
         session,
         user_cls,
         id,
+        links,
         result
     ):
-        query = query_builder.select_related(
+        query = query_builder.select_relationship(
             session.query(user_cls).get(id),
             'all_friends',
+            links=links,
             fields={'users': []},
         )
         assert session.execute(query).scalar() == result
 
     @pytest.mark.parametrize(
-        ('id', 'result'),
+        ('id', 'links', 'result'),
         (
             (
                 2,
+                {
+                    'self': '/categories/2/relationships/parent',
+                    'related': '/categories/2/parent'
+                },
                 {
                     'data': {
                         'type': 'categories',
@@ -148,6 +162,10 @@ class TestSelectRelatedWithLinks(object):
             ),
             (
                 5,
+                {
+                    'self': '/categories/5/relationships/parent',
+                    'related': '/categories/5/parent'
+                },
                 {
                     'data': {
                         'type': 'categories',
@@ -167,20 +185,26 @@ class TestSelectRelatedWithLinks(object):
         session,
         category_cls,
         id,
-        result
+        result,
+        links
     ):
-        query = query_builder.select_related(
+        query = query_builder.select_relationship(
             session.query(category_cls).get(id),
             'parent',
+            links=links,
             fields={'categories': []},
         )
         assert session.execute(query).scalar() == result
 
     @pytest.mark.parametrize(
-        ('id', 'result'),
+        ('id', 'links', 'result'),
         (
             (
                 1,
+                {
+                    'self': '/articles/1/relationships/category',
+                    'related': '/articles/1/category'
+                },
                 {
                     'data': {
                         'type': 'categories',
@@ -200,11 +224,13 @@ class TestSelectRelatedWithLinks(object):
         session,
         article_cls,
         id,
+        links,
         result
     ):
-        query = query_builder.select_related(
+        query = query_builder.select_relationship(
             session.query(article_cls).get(id),
             'category',
+            links=links,
             fields={'articles': []},
         )
         assert session.execute(query).scalar() == result

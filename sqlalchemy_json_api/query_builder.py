@@ -1,4 +1,5 @@
 from collections import namedtuple
+from itertools import chain
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -22,6 +23,7 @@ from .exc import (
     UnknownModel
 )
 from .utils import (
+    chain_if,
     get_attrs,
     get_descriptor_columns,
     get_selectable,
@@ -112,27 +114,14 @@ class QueryBuilder(object):
             s(model_alias),
         ]
 
-    def validate_field_keys(self, fields):
-        if fields:
-            unknown_keys = (
-                set(fields) - set(self.resource_registry.by_type.keys())
-            )
-            if unknown_keys:
-                raise UnknownFieldKey(
-                    'Unknown field keys given. Could not find {0} {1} from '
-                    'given model mapping.'.format(
-                        'keys' if len(unknown_keys) > 1 else 'key',
-                        ','.join("'{0}'".format(key) for key in unknown_keys)
-                    )
-                )
-
-    def select_related(
+    def select_relationship(
         self,
         obj,
         relationship_key,
         fields=None,
         include=None,
         sort=None,
+        links=None,
         from_obj=None
     ):
         """
@@ -178,17 +167,7 @@ class QueryBuilder(object):
 
         from_obj = from_obj.subquery()
 
-        links = (
-            LinksExpression(
-                self,
-                prop.parent.class_,
-                obj
-            ).build_relationship_links(prop.key)
-            if self.base_url is not None else None
-        )
-        return self._select(
-            model,
-            from_obj,
+        return SelectExpression(self, model, from_obj).build_select(
             fields=fields,
             include=include,
             sort=sort,
@@ -203,6 +182,7 @@ class QueryBuilder(object):
         fields=None,
         include=None,
         sort=None,
+        links=None,
         from_obj=None
     ):
         """
@@ -269,15 +249,22 @@ class QueryBuilder(object):
 
         from_obj = from_obj.subquery()
 
-        return self._select(
-            model,
-            from_obj,
+        return SelectExpression(self, model, from_obj).build_select(
             fields=fields,
             include=include,
-            sort=sort
+            sort=sort,
+            links=links
         )
 
-    def select_one(self, model, id, fields=None, include=None, from_obj=None):
+    def select_one(
+        self,
+        model,
+        id,
+        fields=None,
+        include=None,
+        links=None,
+        from_obj=None
+    ):
         """
         Builds a query for selecting single resource instance.
 
@@ -329,12 +316,43 @@ class QueryBuilder(object):
 
         from_obj = from_obj.filter(model.id == id).subquery()
 
-        return self._select(model, from_obj, fields, include, multiple=False)
+        return SelectExpression(self, model, from_obj).build_select(
+            fields=fields,
+            include=include,
+            links=None,
+            multiple=False
+        )
 
-    def _select(
+
+class Expression(object):
+    def __init__(self, query_builder, model, from_obj):
+        self.query_builder = query_builder
+        self.model = model
+        self.from_obj = from_obj
+
+    @property
+    def args(self):
+        return [self.query_builder, self.model, self.from_obj]
+
+
+class SelectExpression(Expression):
+    def validate_field_keys(self, fields):
+        if fields:
+            unknown_keys = (
+                set(fields) -
+                set(self.query_builder.resource_registry.by_type.keys())
+            )
+            if unknown_keys:
+                raise UnknownFieldKey(
+                    'Unknown field keys given. Could not find {0} {1} from '
+                    'given model mapping.'.format(
+                        'keys' if len(unknown_keys) > 1 else 'key',
+                        ','.join("'{0}'".format(key) for key in unknown_keys)
+                    )
+                )
+
+    def build_select(
         self,
-        model,
-        from_obj,
         fields=None,
         include=None,
         sort=None,
@@ -352,8 +370,6 @@ class QueryBuilder(object):
             sort=sort
         )
         from_args = self._get_from_args(
-            model,
-            from_obj,
             params,
             multiple,
             relationship,
@@ -370,14 +386,12 @@ class QueryBuilder(object):
 
     def _get_from_args(
         self,
-        model,
-        from_obj,
         params,
         multiple,
         relationship,
         links
     ):
-        data_expr = DataExpression(self, model, from_obj)
+        data_expr = DataExpression(*self.args)
         has_relationship = relationship is not None
         data_query = (
             data_expr.build_data_array(params, ids_only=has_relationship)
@@ -388,29 +402,20 @@ class QueryBuilder(object):
 
         if params.include is not None:
             include_expr = IncludeExpression(
-                self,
-                model,
-                get_selectable(from_obj).alias()
+                self.query_builder,
+                self.model,
+                get_selectable(self.from_obj).alias()
             )
             included_query = include_expr.build_included(params)
             from_args.append(included_query.as_scalar().label('included'))
 
         if links:
             from_args.append(
-                sa.func.json_build_object(*links).label('links')
+                sa.func.json_build_object(
+                    *chain(*links.items())
+                ).label('links')
             )
         return from_args
-
-
-class Expression(object):
-    def __init__(self, query_builder, model, from_obj):
-        self.query_builder = query_builder
-        self.model = model
-        self.from_obj = from_obj
-
-    @property
-    def args(self):
-        return [self.query_builder, self.model, self.from_obj]
 
 
 class AttributesExpression(Expression):
@@ -515,24 +520,22 @@ class AttributesExpression(Expression):
         return model_fields
 
     def build_attributes(self, fields):
-        return sum(
-            (
+        return chain_if(
+            *(
                 [s(key), self.adapt_attribute(key)]
                 for key in self.get_model_fields(fields)
-            ),
-            []
+            )
         )
 
 
 class RelationshipsExpression(Expression):
     def build_relationships(self, fields):
-        return sum(
-            (
+        return chain_if(
+            *(
                 self.build_relationship(relationship)
                 for relationship
                 in self.get_relationship_properties(fields)
-            ),
-            []
+            )
         )
 
     def build_relationship_data(self, relationship, alias):
@@ -633,13 +636,12 @@ class DataExpression(Expression):
             ).build_relationships(fields),
             'links': LinksExpression(*args).build_links()
         }
-        return sum(
-            (
+        return chain_if(
+            *(
                 [s(key), sa.func.json_build_object(*values)]
                 for key, values in parts.items()
                 if values
-            ),
-            []
+            )
         )
 
     def build_data_expr(self, params, ids_only=False):

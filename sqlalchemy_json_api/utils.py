@@ -1,3 +1,5 @@
+from itertools import chain
+
 import sqlalchemy as sa
 from sqlalchemy.orm.attributes import InstrumentedAttribute, QueryableAttribute
 
@@ -53,3 +55,9 @@ def get_descriptor_columns(model, descriptor):
         'Given descriptor is not of type InstrumentedAttribute, '
         'ColumnProperty or Column.'
     )
+
+
+def chain_if(*args):
+    if args:
+        return chain(*args)
+    return []
