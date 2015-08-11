@@ -91,7 +91,7 @@ class QueryBuilder(object):
                     )
                 )
 
-    def get_model_alias(self, model):
+    def get_resource_type(self, model):
         if isinstance(model, sa.orm.util.AliasedClass):
             model = sa.inspect(model).mapper.class_
         try:
@@ -106,7 +106,7 @@ class QueryBuilder(object):
         return cast_if(get_attrs(from_obj).id, sa.String)
 
     def build_resource_identifier(self, model, from_obj):
-        model_alias = self.get_model_alias(model)
+        model_alias = self.get_resource_type(model)
         return [
             s('id'),
             self.get_id(from_obj),
@@ -114,18 +114,23 @@ class QueryBuilder(object):
             s(model_alias),
         ]
 
-    def select_relationship(
+    def select_related(
         self,
         obj,
         relationship_key,
-        fields=None,
-        include=None,
         sort=None,
+        include=None,
+        fields=None,
         links=None,
         from_obj=None
     ):
         """
-        Builds a query for selecting related resources::
+        Builds a query for selecting related resource(s). This method can be
+        used for building select queries for JSON requests such as::
+
+            GET articles/1/author
+
+        Usage::
 
             article = session.query(Article).get(1)
 
@@ -134,6 +139,22 @@ class QueryBuilder(object):
                 'category'
             )
 
+        :param obj:
+            The root object to select the related resources from.
+        :param fields:
+            A mapping of fields. Keys representing model keys and values as
+            lists of model descriptor names.
+        :param include:
+            List of dot-separated relationship paths.
+        :param links:
+            A dictionary of links to apply as top level links in the built
+            query. Keys representing json keys and values as valid urls or
+            dictionaries.
+        :param sort:
+            List of attributes to apply as an order by for the root model.
+        :param from_obj:
+            A SQLAlchemy selectable (for example a Query object) to select the
+            query results from.
 
         :raises sqlalchemy_json_api.IdPropertyNotFound:
             If one of the referenced models does not have an id property
@@ -143,18 +164,99 @@ class QueryBuilder(object):
             keyword.
 
         :raises sqlalchemy_json_api.UnknownModel:
-            If the model mapping of this QueryBuilder does not contain the
+            If the resource registry of this QueryBuilder does not contain the
             given root model.
 
         :raises sqlalchemy_json_api.UnknownField:
             If the given selectable does not contain given field.
 
         :raises sqlalchemy_json_api.UnknownFieldKey:
-            If the given field list key is not present in the model mapping of
-            this query builder.
+            If the given field list key is not present in the resource registry
+            of this query builder.
 
         .. versionadded: 0.2
         """
+        return self._select_related(
+            obj,
+            relationship_key,
+            sort=sort,
+            include=include,
+            fields=fields,
+            links=links,
+            from_obj=from_obj
+        )
+
+    def select_relationship(
+        self,
+        obj,
+        relationship_key,
+        sort=None,
+        links=None,
+        from_obj=None
+    ):
+        """
+        Builds a query for selecting relationship resource(s)::
+
+            article = session.query(Article).get(1)
+
+            query = query_builder.select_related(
+                article,
+                'category'
+            )
+
+
+        :param obj:
+            The root object to select the related resources from.
+        :param sort:
+            List of attributes to apply as an order by for the root model.
+        :param links:
+            A dictionary of links to apply as top level links in the built
+            query. Keys representing json keys and values as valid urls or
+            dictionaries.
+        :param from_obj:
+            A SQLAlchemy selectable (for example a Query object) to select the
+            query results from.
+
+        :raises sqlalchemy_json_api.IdPropertyNotFound:
+            If one of the referenced models does not have an id property
+
+        :raises sqlalchemy_json_api.InvalidField:
+            If trying to include foreign key field or if the field is reserved
+            keyword.
+
+        :raises sqlalchemy_json_api.UnknownModel:
+            If the resource registry of this QueryBuilder does not contain the
+            given root model.
+
+        :raises sqlalchemy_json_api.UnknownField:
+            If the given selectable does not contain given field.
+
+        :raises sqlalchemy_json_api.UnknownFieldKey:
+            If the given field list key is not present in the resource registry
+            of this query builder.
+
+        .. versionadded: 0.2
+        """
+        return self._select_related(
+            obj,
+            relationship_key,
+            sort=sort,
+            links=links,
+            ids_only=True,
+            from_obj=from_obj
+        )
+
+    def _select_related(
+        self,
+        obj,
+        relationship_key,
+        sort=None,
+        include=None,
+        fields=None,
+        links=None,
+        ids_only=False,
+        from_obj=None
+    ):
         mapper = sa.inspect(obj.__class__)
         prop = mapper.relationships[relationship_key]
         model = prop.mapper.class_
@@ -168,11 +270,11 @@ class QueryBuilder(object):
         from_obj = from_obj.subquery()
 
         return SelectExpression(self, model, from_obj).build_select(
-            fields=fields,
-            include=include,
             sort=sort,
             multiple=prop.uselist,
-            relationship=prop,
+            include=include,
+            ids_only=ids_only,
+            fields=fields,
             links=links
         )
 
@@ -220,6 +322,10 @@ class QueryBuilder(object):
             List of dot-separated relationship paths.
         :param sort:
             List of attributes to apply as an order by for the root model.
+        :param links:
+            A dictionary of links to apply as top level links in the built
+            query. Keys representing json keys and values as valid urls or
+            dictionaries.
         :param from_obj:
             A SQLAlchemy selectable (for example a Query object) to select the
             query results from.
@@ -233,15 +339,15 @@ class QueryBuilder(object):
             keyword.
 
         :raises sqlalchemy_json_api.UnknownModel:
-            If the model mapping of this QueryBuilder does not contain the
+            If the resource registry of this QueryBuilder does not contain the
             given root model.
 
         :raises sqlalchemy_json_api.UnknownField:
             If the given selectable does not contain given field.
 
         :raises sqlalchemy_json_api.UnknownFieldKey:
-            If the given field list key is not present in the model mapping of
-            this query builder.
+            If the given field list key is not present in the resource registry
+            of this query builder.
 
         """
         if from_obj is None:
@@ -287,6 +393,10 @@ class QueryBuilder(object):
             lists of model descriptor names.
         :param include:
             List of dot-separated relationship paths.
+        :param links:
+            A dictionary of links to apply as top level links in the built
+            query. Keys representing json keys and values as valid urls or
+            dictionaries.
         :param from_obj:
             A SQLAlchemy selectable (for example a Query object) to select the
             query results from.
@@ -300,15 +410,15 @@ class QueryBuilder(object):
             keyword.
 
         :raises sqlalchemy_json_api.UnknownModel:
-            If the model mapping of this QueryBuilder does not contain the
+            If the resource registry of this QueryBuilder does not contain the
             given root model.
 
         :raises sqlalchemy_json_api.UnknownField:
             If the given selectable does not contain given field.
 
         :raises sqlalchemy_json_api.UnknownFieldKey:
-            If the given field list key is not present in the model mapping of
-            this query builder.
+            If the given field list key is not present in the resource registry
+            of this query builder.
 
         """
         if from_obj is None:
@@ -358,7 +468,7 @@ class SelectExpression(Expression):
         sort=None,
         links=None,
         multiple=True,
-        relationship=None
+        ids_only=False
     ):
         self.validate_field_keys(fields)
         if fields is None:
@@ -372,7 +482,7 @@ class SelectExpression(Expression):
         from_args = self._get_from_args(
             params,
             multiple,
-            relationship,
+            ids_only,
             links
         )
 
@@ -388,15 +498,14 @@ class SelectExpression(Expression):
         self,
         params,
         multiple,
-        relationship,
+        ids_only,
         links
     ):
         data_expr = DataExpression(*self.args)
-        has_relationship = relationship is not None
         data_query = (
-            data_expr.build_data_array(params, ids_only=has_relationship)
+            data_expr.build_data_array(params, ids_only=ids_only)
             if multiple else
-            data_expr.build_data(params, ids_only=has_relationship)
+            data_expr.build_data(params, ids_only=ids_only)
         )
         from_args = [data_query.as_scalar().label('data')]
 
@@ -507,7 +616,7 @@ class AttributesExpression(Expression):
             self.validate_field(field, descriptors)
 
     def get_model_fields(self, fields):
-        model_key = self.query_builder.get_model_alias(self.model)
+        model_key = self.query_builder.get_resource_type(self.model)
 
         if not fields or model_key not in fields:
             model_fields = self.all_fields
@@ -586,7 +695,7 @@ class RelationshipsExpression(Expression):
         ]
 
     def get_relationship_properties(self, fields):
-        model_alias = self.query_builder.get_model_alias(self.model)
+        model_alias = self.query_builder.get_resource_type(self.model)
         mapper = get_mapper(self.model)
         if model_alias not in fields:
             return list(mapper.relationships.values())
@@ -602,7 +711,7 @@ class LinksExpression(Expression):
     def build_link(self, postfix=None):
         args = [
             s(self.query_builder.base_url),
-            s(self.query_builder.get_model_alias(self.model)),
+            s(self.query_builder.get_resource_type(self.model)),
             s('/'),
             self.query_builder.get_id(self.from_obj),
         ]

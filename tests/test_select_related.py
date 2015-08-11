@@ -4,7 +4,7 @@ from sqlalchemy_json_api import QueryBuilder
 
 
 @pytest.mark.usefixtures('table_creator', 'dataset')
-class TestSelectRelationship(object):
+class TestSelectRelated(object):
     @pytest.mark.parametrize(
         ('id', 'result'),
         (
@@ -22,7 +22,7 @@ class TestSelectRelationship(object):
             )
         )
     )
-    def test_to_many_relationship(
+    def test_to_many_relationship_with_ids_only(
         self,
         query_builder,
         session,
@@ -30,22 +30,43 @@ class TestSelectRelationship(object):
         id,
         result
     ):
-        query = query_builder.select_relationship(
+        query = query_builder.select_related(
             session.query(user_cls).get(id),
-            'all_friends'
+            'all_friends',
+            fields={'users': []}
         )
         assert session.execute(query).scalar() == result
 
     @pytest.mark.parametrize(
-        ('id', 'result'),
+        ('id', 'fields', 'result'),
         (
             (
                 2,
-                {'data': {'type': 'categories', 'id': '1'}}
+                {'categories': ['name']},
+                {'data': {
+                    'type':
+                    'categories',
+                    'id': '1',
+                    'attributes': {
+                        'name': 'Some category'
+                    }
+                }}
             ),
             (
                 5,
-                {'data': {'type': 'categories', 'id': '3'}}
+                {'categories': ['parent']},
+                {'data': {
+                    'type': 'categories',
+                    'id': '3',
+                    'relationships': {
+                        'parent': {
+                            'data': {
+                                'id': '2',
+                                'type': 'categories'
+                            }
+                        }
+                    }
+                }}
             )
         )
     )
@@ -55,11 +76,13 @@ class TestSelectRelationship(object):
         session,
         category_cls,
         id,
+        fields,
         result
     ):
-        query = query_builder.select_relationship(
+        query = query_builder.select_related(
             session.query(category_cls).get(id),
-            'parent'
+            'parent',
+            fields=fields
         )
         assert session.execute(query).scalar() == result
 
@@ -75,47 +98,41 @@ class TestSelectRelationshipWithLinks(object):
         (
             (
                 1,
-                {
-                    'self': '/users/1/relationships/all_friends',
-                    'related': '/users/1/all_friends'
-                },
+                {'self': '/users/1/all_friends'},
                 {
                     'data': [
                         {
                             'type': 'users',
                             'id': '2',
+                            'links': {'self': '/users/2'}
                         }
                     ],
-                    'links': {
-                        'self': '/users/1/relationships/all_friends',
-                        'related': '/users/1/all_friends'
-                    }
+                    'links': {'self': '/users/1/all_friends'}
                 }
             ),
             (
                 2,
-                {
-                    'self': '/users/2/relationships/all_friends',
-                    'related': '/users/2/all_friends'
-                },
+                {'self': '/users/2/all_friends'},
                 {
                     'data': [
                         {
                             'type': 'users',
                             'id': '1',
+                            'links': {'self': '/users/1'}
                         },
                         {
                             'type': 'users',
                             'id': '3',
+                            'links': {'self': '/users/3'}
                         },
                         {
                             'type': 'users',
                             'id': '4',
+                            'links': {'self': '/users/4'}
                         }
                     ],
                     'links': {
-                        'self': '/users/2/relationships/all_friends',
-                        'related': '/users/2/all_friends'
+                        'self': '/users/2/all_friends',
                     }
                 }
             )
@@ -130,9 +147,10 @@ class TestSelectRelationshipWithLinks(object):
         links,
         result
     ):
-        query = query_builder.select_relationship(
+        query = query_builder.select_related(
             session.query(user_cls).get(id),
             'all_friends',
+            fields={'users': []},
             links=links
         )
         assert session.execute(query).scalar() == result
@@ -142,36 +160,26 @@ class TestSelectRelationshipWithLinks(object):
         (
             (
                 2,
-                {
-                    'self': '/categories/2/relationships/parent',
-                    'related': '/categories/2/parent'
-                },
+                {'self': '/categories/2/parent'},
                 {
                     'data': {
                         'type': 'categories',
                         'id': '1',
+                        'links': {'self': '/categories/1'}
                     },
-                    'links': {
-                        'self': '/categories/2/relationships/parent',
-                        'related': '/categories/2/parent'
-                    }
+                    'links': {'self': '/categories/2/parent'}
                 }
             ),
             (
                 5,
-                {
-                    'self': '/categories/5/relationships/parent',
-                    'related': '/categories/5/parent'
-                },
+                {'self': '/categories/5/parent'},
                 {
                     'data': {
                         'type': 'categories',
                         'id': '3',
+                        'links': {'self': '/categories/3'}
                     },
-                    'links': {
-                        'self': '/categories/5/relationships/parent',
-                        'related': '/categories/5/parent'
-                    }
+                    'links': {'self': '/categories/5/parent'}
                 }
             )
         )
@@ -185,9 +193,10 @@ class TestSelectRelationshipWithLinks(object):
         result,
         links
     ):
-        query = query_builder.select_relationship(
+        query = query_builder.select_related(
             session.query(category_cls).get(id),
             'parent',
+            fields={'categories': []},
             links=links
         )
         assert session.execute(query).scalar() == result
@@ -198,17 +207,18 @@ class TestSelectRelationshipWithLinks(object):
             (
                 1,
                 {
-                    'self': '/articles/1/relationships/category',
-                    'related': '/articles/1/category'
+                    'self': '/articles/1/category',
                 },
                 {
                     'data': {
                         'type': 'categories',
                         'id': '1',
+                        'links': {
+                            'self': '/categories/1',
+                        }
                     },
                     'links': {
-                        'self': '/articles/1/relationships/category',
-                        'related': '/articles/1/category'
+                        'self': '/articles/1/category',
                     }
                 }
             ),
@@ -223,9 +233,10 @@ class TestSelectRelationshipWithLinks(object):
         links,
         result
     ):
-        query = query_builder.select_relationship(
+        query = query_builder.select_related(
             session.query(article_cls).get(id),
             'category',
+            fields={'categories': []},
             links=links
         )
         assert session.execute(query).scalar() == result
