@@ -24,3 +24,9 @@ Sort by name descending first and id ascending second
         Article,
         sort=['-name', 'id']
     )
+
+
+.. note::
+
+    SQLAlchemy-JSON-API does NOT support sorting by related resource attribute
+    at the moment.
