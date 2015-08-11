@@ -45,15 +45,18 @@ class TestQueryBuilderSelectWithLinks(object):
                         'links': {'self': '/articles/1'},
                         'relationships': {
                             'category': {
-                            'data': {
-                                'type': 'categories',
-                                'id': '1',
-                            },
-                            'links': {
-                                'self': '/articles/1/relationships/category',
-                                'related': '/articles/1/category'
+                                'data': {
+                                    'type': 'categories',
+                                    'id': '1',
+                                },
+                                'links': {
+                                    'self': (
+                                        '/articles/1/relationships/category'
+                                    ),
+                                    'related': '/articles/1/category'
+                                }
                             }
-                        }}
+                        }
                     }],
                     'included': [{
                         'type': 'categories',
@@ -79,15 +82,20 @@ class TestQueryBuilderSelectWithLinks(object):
                         },
                         'links': {'self': '/categories/1'},
                         'relationships': {
-                        'subcategories': {
-                        'links': {
-                        'self': '/categories/1/relationships/subcategories',
-                        'related': '/categories/1/subcategories'
+                            'subcategories': {
+                                'links': {
+                                    'self': (
+                                        '/categories/1/relationships'
+                                        '/subcategories'
+                                    ),
+                                    'related': '/categories/1/subcategories'
+                                },
+                                'data': [
+                                    {'id': '2', 'type': 'categories'},
+                                    {'id': '4', 'type': 'categories'}
+                                ]
+                            }
                         },
-                        'data': [
-                            {'id': '2', 'type': 'categories'},
-                            {'id': '4', 'type': 'categories'}
-                        ]}},
                     }]
                 }
             ),
