@@ -259,7 +259,7 @@ class TestSelectRelationshipWithLinks(object):
             ),
         )
     )
-    def test_to_one_relationship(
+    def test_as_text_parameter(
         self,
         query_builder,
         session,
