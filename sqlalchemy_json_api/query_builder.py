@@ -114,17 +114,7 @@ class QueryBuilder(object):
             s(model_alias),
         ]
 
-    def select_related(
-        self,
-        obj,
-        relationship_key,
-        sort=None,
-        include=None,
-        fields=None,
-        links=None,
-        from_obj=None,
-        as_text=False
-    ):
+    def select_related(self, obj, relationship_key, **kwargs):
         """
         Builds a query for selecting related resource(s). This method can be
         used for building select queries for JSON requests such as::
@@ -162,26 +152,9 @@ class QueryBuilder(object):
 
         .. versionadded: 0.2
         """
-        return self._select_related(
-            obj,
-            relationship_key,
-            sort=sort,
-            include=include,
-            fields=fields,
-            links=links,
-            from_obj=from_obj,
-            as_text=as_text
-        )
+        return self._select_related(obj, relationship_key, **kwargs)
 
-    def select_relationship(
-        self,
-        obj,
-        relationship_key,
-        sort=None,
-        links=None,
-        from_obj=None,
-        as_text=False
-    ):
+    def select_relationship(self, obj, relationship_key, **kwargs):
         """
         Builds a query for selecting relationship resource(s)::
 
@@ -210,32 +183,15 @@ class QueryBuilder(object):
 
         .. versionadded: 0.2
         """
-        return self._select_related(
-            obj,
-            relationship_key,
-            sort=sort,
-            links=links,
-            ids_only=True,
-            from_obj=from_obj,
-            as_text=as_text
-        )
+        kwargs['ids_only'] = True
+        return self._select_related(obj, relationship_key, **kwargs)
 
-    def _select_related(
-        self,
-        obj,
-        relationship_key,
-        sort=None,
-        include=None,
-        fields=None,
-        links=None,
-        ids_only=False,
-        from_obj=None,
-        as_text=False
-    ):
+    def _select_related(self, obj, relationship_key, **kwargs):
         mapper = sa.inspect(obj.__class__)
         prop = mapper.relationships[relationship_key]
         model = prop.mapper.class_
 
+        from_obj = kwargs.pop('from_obj', None)
         if from_obj is None:
             from_obj = sa.orm.query.Query(model)
         from_obj = from_obj.filter(prop._with_parent(obj))
@@ -245,25 +201,11 @@ class QueryBuilder(object):
         from_obj = from_obj.subquery()
 
         return SelectExpression(self, model, from_obj).build_select(
-            sort=sort,
             multiple=prop.uselist,
-            include=include,
-            ids_only=ids_only,
-            fields=fields,
-            links=links,
-            as_text=as_text
+            **kwargs
         )
 
-    def select(
-        self,
-        model,
-        fields=None,
-        include=None,
-        sort=None,
-        links=None,
-        from_obj=None,
-        as_text=False
-    ):
+    def select(self, model, **kwargs):
         """
         Builds a query for selecting multiple resource instances::
 
@@ -310,29 +252,15 @@ class QueryBuilder(object):
             Whether or not to build a query that returns the results as text
             (raw json).
         """
+        from_obj = kwargs.pop('from_obj', None)
         if from_obj is None:
             from_obj = sa.orm.query.Query(model)
 
         from_obj = from_obj.subquery()
 
-        return SelectExpression(self, model, from_obj).build_select(
-            fields=fields,
-            include=include,
-            sort=sort,
-            links=links,
-            as_text=as_text
-        )
+        return SelectExpression(self, model, from_obj).build_select(**kwargs)
 
-    def select_one(
-        self,
-        model,
-        id,
-        fields=None,
-        include=None,
-        links=None,
-        from_obj=None,
-        as_text=False
-    ):
+    def select_one(self, model, id, **kwargs):
         """
         Builds a query for selecting single resource instance.
 
@@ -366,17 +294,15 @@ class QueryBuilder(object):
             Whether or not to build a query that returns the results as text
             (raw json).
         """
+        from_obj = kwargs.pop('from_obj', None)
         if from_obj is None:
             from_obj = sa.orm.query.Query(model)
 
         from_obj = from_obj.filter(model.id == id).subquery()
 
         return SelectExpression(self, model, from_obj).build_select(
-            fields=fields,
-            include=include,
-            links=None,
             multiple=False,
-            as_text=as_text
+            **kwargs
         )
 
 
