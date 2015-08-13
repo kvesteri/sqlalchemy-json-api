@@ -1,3 +1,4 @@
+import json
 import pytest
 
 from sqlalchemy_json_api import QueryBuilder
@@ -240,3 +241,36 @@ class TestSelectRelationshipWithLinks(object):
             links=links
         )
         assert session.execute(query).scalar() == result
+
+    @pytest.mark.parametrize(
+        ('id', 'result'),
+        (
+            (
+                1,
+                {
+                    'data': {
+                        'type': 'categories',
+                        'id': '1',
+                        'links': {
+                            'self': '/categories/1',
+                        }
+                    }
+                }
+            ),
+        )
+    )
+    def test_to_one_relationship(
+        self,
+        query_builder,
+        session,
+        article_cls,
+        id,
+        result
+    ):
+        query = query_builder.select_related(
+            session.query(article_cls).get(id),
+            'category',
+            fields={'categories': []},
+            as_text=True
+        )
+        assert json.loads(session.execute(query).scalar()) == result

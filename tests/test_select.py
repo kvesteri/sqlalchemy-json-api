@@ -1,3 +1,4 @@
+import json
 import pytest
 import sqlalchemy as sa
 
@@ -926,4 +927,21 @@ class TestQueryBuilderSelect(object):
                     'type': 'users'
                 }
             ]
+        }
+
+    def test_as_text_parameter(self, query_builder, session, article_cls):
+        query = query_builder.select(
+            article_cls,
+            fields={'articles': ['name']},
+            as_text=True
+        )
+
+        assert json.loads(session.execute(query).scalar()) == {
+            'data': [{
+                'type': 'articles',
+                'id': '1',
+                'attributes': {
+                    'name': 'Some article'
+                }
+            }]
         }

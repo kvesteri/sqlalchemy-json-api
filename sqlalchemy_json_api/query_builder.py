@@ -122,7 +122,8 @@ class QueryBuilder(object):
         include=None,
         fields=None,
         links=None,
-        from_obj=None
+        from_obj=None,
+        as_text=False
     ):
         """
         Builds a query for selecting related resource(s). This method can be
@@ -183,7 +184,8 @@ class QueryBuilder(object):
             include=include,
             fields=fields,
             links=links,
-            from_obj=from_obj
+            from_obj=from_obj,
+            as_text=as_text
         )
 
     def select_relationship(
@@ -192,7 +194,8 @@ class QueryBuilder(object):
         relationship_key,
         sort=None,
         links=None,
-        from_obj=None
+        from_obj=None,
+        as_text=False
     ):
         """
         Builds a query for selecting relationship resource(s)::
@@ -243,7 +246,8 @@ class QueryBuilder(object):
             sort=sort,
             links=links,
             ids_only=True,
-            from_obj=from_obj
+            from_obj=from_obj,
+            as_text=as_text
         )
 
     def _select_related(
@@ -255,7 +259,8 @@ class QueryBuilder(object):
         fields=None,
         links=None,
         ids_only=False,
-        from_obj=None
+        from_obj=None,
+        as_text=False
     ):
         mapper = sa.inspect(obj.__class__)
         prop = mapper.relationships[relationship_key]
@@ -275,7 +280,8 @@ class QueryBuilder(object):
             include=include,
             ids_only=ids_only,
             fields=fields,
-            links=links
+            links=links,
+            as_text=as_text
         )
 
     def select(
@@ -285,7 +291,8 @@ class QueryBuilder(object):
         include=None,
         sort=None,
         links=None,
-        from_obj=None
+        from_obj=None,
+        as_text=False
     ):
         """
         Builds a query for selecting multiple resource instances::
@@ -359,7 +366,8 @@ class QueryBuilder(object):
             fields=fields,
             include=include,
             sort=sort,
-            links=links
+            links=links,
+            as_text=as_text
         )
 
     def select_one(
@@ -369,7 +377,8 @@ class QueryBuilder(object):
         fields=None,
         include=None,
         links=None,
-        from_obj=None
+        from_obj=None,
+        as_text=False
     ):
         """
         Builds a query for selecting single resource instance.
@@ -430,7 +439,8 @@ class QueryBuilder(object):
             fields=fields,
             include=include,
             links=None,
-            multiple=False
+            multiple=False,
+            as_text=as_text
         )
 
 
@@ -468,7 +478,8 @@ class SelectExpression(Expression):
         sort=None,
         links=None,
         multiple=True,
-        ids_only=False
+        ids_only=False,
+        as_text=False
     ):
         self.validate_field_keys(fields)
         if fields is None:
@@ -488,8 +499,12 @@ class SelectExpression(Expression):
 
         main_json_query = sa.select(from_args).alias('main_json_query')
 
+        expr = sa.func.row_to_json(sa.text('main_json_query.*'))
+        if as_text:
+            expr = sa.cast(expr, sa.Text)
+
         query = sa.select(
-            [sa.func.row_to_json(sa.text('main_json_query.*'))],
+            [expr],
             from_obj=main_json_query
         )
         return query
