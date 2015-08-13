@@ -66,3 +66,29 @@ Now we can start using it by selecting from the existing resources.
     #         },
     #     }]
     # }
+
+You can also make the query builder build queries that return the results as
+raw json by using the ``as_text`` parameter.
+
+::
+
+    query = query_builder.select(Article, as_text=True)
+    result = session.execute(query).scalar()
+    # '{
+    #     "data": [{
+    #         "id": "1",
+    #         "type": "articles",
+    #         "attributes": {
+    #             "content": "Some content",
+    #             "name": "Some article",
+    #         },
+    #         "relationships": {
+    #             "comments": {
+    #                 "data": [
+    #                     {"id": "1", "type": "comments"},
+    #                     {"id": "2", "type": "comments"}
+    #                 ]
+    #             },
+    #         },
+    #     }]
+    # }'
