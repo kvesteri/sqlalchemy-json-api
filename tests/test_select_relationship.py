@@ -1,4 +1,5 @@
 import json
+
 import pytest
 
 from sqlalchemy_json_api import QueryBuilder
