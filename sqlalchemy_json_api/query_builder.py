@@ -156,24 +156,9 @@ class QueryBuilder(object):
         :param from_obj:
             A SQLAlchemy selectable (for example a Query object) to select the
             query results from.
-
-        :raises sqlalchemy_json_api.IdPropertyNotFound:
-            If one of the referenced models does not have an id property
-
-        :raises sqlalchemy_json_api.InvalidField:
-            If trying to include foreign key field or if the field is reserved
-            keyword.
-
-        :raises sqlalchemy_json_api.UnknownModel:
-            If the resource registry of this QueryBuilder does not contain the
-            given root model.
-
-        :raises sqlalchemy_json_api.UnknownField:
-            If the given selectable does not contain given field.
-
-        :raises sqlalchemy_json_api.UnknownFieldKey:
-            If the given field list key is not present in the resource registry
-            of this query builder.
+        :param as_text:
+            Whether or not to build a query that returns the results as text
+            (raw json).
 
         .. versionadded: 0.2
         """
@@ -219,24 +204,9 @@ class QueryBuilder(object):
         :param from_obj:
             A SQLAlchemy selectable (for example a Query object) to select the
             query results from.
-
-        :raises sqlalchemy_json_api.IdPropertyNotFound:
-            If one of the referenced models does not have an id property
-
-        :raises sqlalchemy_json_api.InvalidField:
-            If trying to include foreign key field or if the field is reserved
-            keyword.
-
-        :raises sqlalchemy_json_api.UnknownModel:
-            If the resource registry of this QueryBuilder does not contain the
-            given root model.
-
-        :raises sqlalchemy_json_api.UnknownField:
-            If the given selectable does not contain given field.
-
-        :raises sqlalchemy_json_api.UnknownFieldKey:
-            If the given field list key is not present in the resource registry
-            of this query builder.
+        :param as_text:
+            Whether or not to build a query that returns the results as text
+            (raw json).
 
         .. versionadded: 0.2
         """
@@ -336,26 +306,9 @@ class QueryBuilder(object):
         :param from_obj:
             A SQLAlchemy selectable (for example a Query object) to select the
             query results from.
-
-
-        :raises sqlalchemy_json_api.IdPropertyNotFound:
-            If one of the referenced models does not have an id property
-
-        :raises sqlalchemy_json_api.InvalidField:
-            If trying to include foreign key field or if the field is reserved
-            keyword.
-
-        :raises sqlalchemy_json_api.UnknownModel:
-            If the resource registry of this QueryBuilder does not contain the
-            given root model.
-
-        :raises sqlalchemy_json_api.UnknownField:
-            If the given selectable does not contain given field.
-
-        :raises sqlalchemy_json_api.UnknownFieldKey:
-            If the given field list key is not present in the resource registry
-            of this query builder.
-
+        :param as_text:
+            Whether or not to build a query that returns the results as text
+            (raw json).
         """
         if from_obj is None:
             from_obj = sa.orm.query.Query(model)
@@ -409,26 +362,9 @@ class QueryBuilder(object):
         :param from_obj:
             A SQLAlchemy selectable (for example a Query object) to select the
             query results from.
-
-
-        :raises sqlalchemy_json_api.IdPropertyNotFound:
-            If one of the referenced models does not have an id property
-
-        :raises sqlalchemy_json_api.InvalidField:
-            If trying to include foreign key field or if the field is reserved
-            keyword.
-
-        :raises sqlalchemy_json_api.UnknownModel:
-            If the resource registry of this QueryBuilder does not contain the
-            given root model.
-
-        :raises sqlalchemy_json_api.UnknownField:
-            If the given selectable does not contain given field.
-
-        :raises sqlalchemy_json_api.UnknownFieldKey:
-            If the given field list key is not present in the resource registry
-            of this query builder.
-
+        :param as_text:
+            Whether or not to build a query that returns the results as text
+            (raw json).
         """
         if from_obj is None:
             from_obj = sa.orm.query.Query(model)
