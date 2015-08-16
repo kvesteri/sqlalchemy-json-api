@@ -155,7 +155,10 @@ def comment_cls(base, article_cls, user_cls):
         id = sa.Column(sa.Integer, primary_key=True)
         content = sa.Column(sa.String)
         article_id = sa.Column(sa.Integer, sa.ForeignKey(article_cls.id))
-        article = sa.orm.relationship(article_cls, backref='comments')
+        article = sa.orm.relationship(
+            article_cls,
+            backref=sa.orm.backref('comments', order_by=id)
+        )
 
         author_id = sa.Column(sa.Integer, sa.ForeignKey(user_cls.id))
         author = sa.orm.relationship(user_cls, backref='comments')
@@ -278,8 +281,24 @@ def dataset(
         ),
         comments=[
             comment_cls(
-                content='Some comment',
+                id=1,
+                content='Comment 1',
                 author=user
+            ),
+            comment_cls(
+                id=2,
+                content='Comment 2',
+                author=user2
+            ),
+            comment_cls(
+                id=3,
+                content='Comment 3',
+                author=user
+            ),
+            comment_cls(
+                id=4,
+                content='Comment 4',
+                author=user2
             )
         ]
     )

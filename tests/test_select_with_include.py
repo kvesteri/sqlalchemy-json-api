@@ -37,8 +37,44 @@ class TestQueryBuilderSelectWithInclude(object):
             include=include,
             from_obj=session.query(user_cls).filter(user_cls.id.in_([1, 2]))
         )
-        import sqlalchemy as sa
-        print(query.compile(dialect=sa.dialects.postgresql.dialect()))
+        assert session.execute(query).scalar() == result
+
+    @pytest.mark.parametrize(
+        ('fields', 'include', 'result'),
+        (
+            (
+                {'comments': [], 'users': []},
+                ['author'],
+                {
+                    'data': [
+                        {'type': 'comments', 'id': '1'},
+                        {'type': 'comments', 'id': '2'},
+                        {'type': 'comments', 'id': '3'},
+                        {'type': 'comments', 'id': '4'}
+                    ],
+                    'included': [
+                        {'type': 'users', 'id': '1'},
+                        {'type': 'users', 'id': '2'}
+                    ]
+                }
+            ),
+        )
+    )
+    def test_fetches_distinct_included_resources(
+        self,
+        query_builder,
+        session,
+        comment_cls,
+        fields,
+        include,
+        result
+    ):
+        query = query_builder.select(
+            comment_cls,
+            fields=fields,
+            include=include,
+            from_obj=session.query(comment_cls).order_by(comment_cls.id)
+        )
         assert session.execute(query).scalar() == result
 
     @pytest.mark.parametrize(
@@ -171,7 +207,12 @@ class TestQueryBuilderSelectWithInclude(object):
                                 'data': {'type': 'categories', 'id': '1'}
                             },
                             'comments': {
-                                'data': [{'type': 'comments', 'id': '1'}]
+                                'data': [
+                                    {'type': 'comments', 'id': '1'},
+                                    {'type': 'comments', 'id': '2'},
+                                    {'type': 'comments', 'id': '3'},
+                                    {'type': 'comments', 'id': '4'}
+                                ]
                             }
                         }
                     }],
@@ -184,7 +225,22 @@ class TestQueryBuilderSelectWithInclude(object):
                         {
                             'type': 'comments',
                             'id': '1',
-                            'attributes': {'content': 'Some comment'}
+                            'attributes': {'content': 'Comment 1'}
+                        },
+                        {
+                            'type': 'comments',
+                            'id': '2',
+                            'attributes': {'content': 'Comment 2'}
+                        },
+                        {
+                            'type': 'comments',
+                            'id': '3',
+                            'attributes': {'content': 'Comment 3'}
+                        },
+                        {
+                            'type': 'comments',
+                            'id': '4',
+                            'attributes': {'content': 'Comment 4'}
                         },
                     ]
                 }

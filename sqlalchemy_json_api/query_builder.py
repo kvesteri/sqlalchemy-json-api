@@ -731,7 +731,7 @@ class IncludeExpression(Expression):
             alias,
             get_selectable(self.from_obj),
             correlate=False
-        )
+        ).distinct()
         if cls is self.model:
             query = query.where(
                 alias.id.notin_(

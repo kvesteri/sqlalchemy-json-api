@@ -4,6 +4,12 @@ Changelog
 Here you can see the full list of changes between each SQLAlchemy-JSON-API release.
 
 
+0.2.2 (2015-08-16)
+^^^^^^^^^^^^^^^^^^
+
+- Fixed included to use distinct for included resources queries
+
+
 0.2.1 (2015-08-16)
 ^^^^^^^^^^^^^^^^^^
 
