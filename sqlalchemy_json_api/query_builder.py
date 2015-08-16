@@ -678,30 +678,21 @@ class IncludeExpression(Expression):
 
         union_select = union(*selects).alias()
         return sa.select(
-            [union_select.c.included],
+            [union_select.c.included.label('included')],
             from_obj=union_select
         ).order_by(
             union_select.c.included[s('type')],
             union_select.c.included[s('id')]
-        ).correlate(self.from_obj)
+        )
 
     def build_included(self, params):
         included_union = self.build_included_union(params).alias()
-        array_query = sa.select(
-            [sa.func.array_agg(included_union.c.included)],
-            from_obj=included_union
-        )
-        query = sa.select(
-            [array_query.as_scalar()],
-            from_obj=self.from_obj
-        )
         return sa.select(
-            [
-                sa.func.coalesce(
-                    query.as_scalar(),
-                    jsonb_array
-                ).label('included')
-            ]
+            [sa.func.coalesce(
+                sa.func.array_agg(included_union.c.included),
+                jsonb_array
+            ).label('included')],
+            from_obj=included_union
         )
 
     def build_single_included_fields(self, alias, fields):
@@ -738,7 +729,8 @@ class IncludeExpression(Expression):
             expr,
             path,
             alias,
-            get_selectable(self.from_obj)
+            get_selectable(self.from_obj),
+            correlate=False
         )
         if cls is self.model:
             query = query.where(

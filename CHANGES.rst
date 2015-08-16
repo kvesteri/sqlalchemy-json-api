@@ -4,6 +4,13 @@ Changelog
 Here you can see the full list of changes between each SQLAlchemy-JSON-API release.
 
 
+0.2.1 (2015-08-16)
+^^^^^^^^^^^^^^^^^^
+
+- Fixed included parameter when fetching multiple included objects for multiple root resources
+- Update SA-Utils dependency to 0.30.17
+
+
 0.2 (2015-08-11)
 ^^^^^^^^^^^^^^^^
 

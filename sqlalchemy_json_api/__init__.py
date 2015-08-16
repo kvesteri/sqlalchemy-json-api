@@ -7,4 +7,4 @@ from .exc import (  # noqa
 )
 from .query_builder import QueryBuilder, RESERVED_KEYWORDS  # noqa
 
-__version__ = '0.2'
+__version__ = '0.2.1'
