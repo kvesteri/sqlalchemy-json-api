@@ -300,10 +300,12 @@ class QueryBuilder(object):
 
         from_obj = from_obj.filter(model.id == id).subquery()
 
-        return SelectExpression(self, model, from_obj).build_select(
+        query = SelectExpression(self, model, from_obj).build_select(
             multiple=False,
             **kwargs
         )
+        query = query.where(query._froms[0].c.data.isnot(None))
+        return query
 
 
 class Expression(object):

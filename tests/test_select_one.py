@@ -43,7 +43,7 @@ class TestSelectOne(object):
             user_cls,
             99,
         )
-        assert session.execute(query).scalar() == {'data': None}
+        assert session.execute(query).scalar() is None
 
     def test_as_text_parameter(self, query_builder, session, article_cls):
         query = query_builder.select_one(

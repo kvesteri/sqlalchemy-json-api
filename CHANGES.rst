@@ -4,6 +4,12 @@ Changelog
 Here you can see the full list of changes between each SQLAlchemy-JSON-API release.
 
 
+0.3.0 (2015-08-18)
+^^^^^^^^^^^^^^^^^^
+
+- Made select_one return ``None`` when main data equals null
+
+
 0.2.2 (2015-08-16)
 ^^^^^^^^^^^^^^^^^^
 
