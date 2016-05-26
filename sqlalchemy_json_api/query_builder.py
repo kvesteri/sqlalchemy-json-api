@@ -403,10 +403,17 @@ class SelectExpression(Expression):
         from_args = [data_query.as_scalar().label('data')]
 
         if params.include is not None:
+            selectable = get_selectable(self.from_obj).original
+            if params.sort is not None:
+                selectable = apply_sort(selectable, selectable, params.sort)
+            if params.limit is not None:
+                selectable = selectable.limit(params.limit)
+            if params.offset is not None:
+                selectable = selectable.offset(params.offset)
             include_expr = IncludeExpression(
                 self.query_builder,
                 self.model,
-                get_selectable(self.from_obj).alias()
+                selectable.alias()
             )
             included_query = include_expr.build_included(params)
             from_args.append(included_query.as_scalar().label('included'))
@@ -418,6 +425,16 @@ class SelectExpression(Expression):
                 ).label('links')
             )
         return from_args
+
+
+def apply_sort(from_obj, query, sort):
+    for param in sort:
+        query = query.order_by(
+            sa.desc(getattr(from_obj.c, param[1:]))
+            if param[0] == '-' else
+            getattr(from_obj.c, param)
+        )
+    return query
 
 
 class AttributesExpression(Expression):
@@ -668,20 +685,11 @@ class DataExpression(Expression):
         expr = self.build_data_expr(params, ids_only=ids_only)
         query = sa.select([expr], from_obj=self.from_obj)
         if params.sort is not None:
-            query = self.apply_sort(query, params.sort)
+            query = apply_sort(self.from_obj, query, params.sort)
         if params.limit is not None:
             query = query.limit(params.limit)
         if params.offset is not None:
             query = query.offset(params.offset)
-        return query
-
-    def apply_sort(self, query, sort):
-        for param in sort:
-            query = query.order_by(
-                sa.desc(getattr(self.from_obj.c, param[1:]))
-                if param[0] == '-' else
-                getattr(self.from_obj.c, param)
-            )
         return query
 
     def build_data_array(self, params, ids_only=False):

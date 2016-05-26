@@ -407,7 +407,7 @@ class TestQueryBuilderSelect(object):
         }
 
     @pytest.mark.parametrize(
-        ('limit', 'offset', 'results'),
+        ('limit', 'offset', 'result'),
         (
             (
                 3,
@@ -459,7 +459,7 @@ class TestQueryBuilderSelect(object):
         user_cls,
         limit,
         offset,
-        results
+        result
     ):
         query = query_builder.select(
             user_cls,
@@ -469,5 +469,69 @@ class TestQueryBuilderSelect(object):
             offset=offset
         )
         assert session.execute(query).scalar() == {
-            'data': results
+            'data': result
         }
+
+    @pytest.mark.parametrize(
+        ('limit', 'offset', 'result'),
+        (
+            (
+                1,
+                0,
+                {
+                    'data': [
+                        {
+                            'id': '1',
+                            'type': 'users'
+                        }
+                    ],
+                    'included': [
+                        {
+                            'id': '1',
+                            'type': 'groups'
+                        },
+                        {
+                            'id': '2',
+                            'type': 'groups'
+                        }
+                    ]
+                }
+            ),
+            (
+                1,
+                1,
+                {
+                    'data': [
+                        {
+                            'id': '2',
+                            'type': 'users'
+                        }
+                    ],
+                    'included': []
+                }
+            ),
+            (
+                1,
+                5,
+                {'data': [], 'included': []}
+            ),
+        )
+    )
+    def test_limit_and_offset_with_included(
+        self,
+        query_builder,
+        session,
+        user_cls,
+        limit,
+        offset,
+        result
+    ):
+        query = query_builder.select(
+            user_cls,
+            sort=['id'],
+            fields={'users': [], 'groups': []},
+            include={'groups'},
+            limit=limit,
+            offset=offset
+        )
+        assert session.execute(query).scalar() == result
