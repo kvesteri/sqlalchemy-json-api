@@ -84,8 +84,9 @@ class QueryBuilder(object):
         self.validate_model_mapping(model_mapping)
         self.resource_registry = ResourceRegistry(model_mapping)
         self.base_url = base_url
-        if type_formatters is None:
-            self.type_formatters = {}
+        self.type_formatters = (
+            {} if type_formatters is None else type_formatters
+        )
 
     def validate_model_mapping(self, model_mapping):
         for model in model_mapping.values():
