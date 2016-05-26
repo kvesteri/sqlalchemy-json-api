@@ -51,7 +51,7 @@ You can customize this behaviour by providing the ``fields`` parameter to :meth:
 ::
 
 
-    query_builder.select(Article, {'articles': ['name']})
+    query_builder.select(Article, fields={'articles': ['name']})
     result = session.execute(query).scalar()
     # {
     #     'data': [{
@@ -70,7 +70,7 @@ If you only want to select id for given model you need to provide empty list for
 ::
 
 
-    query = query_builder.select(Article, {'articles': []})
+    query = query_builder.select(Article, fields={'articles': []})
     result = session.execute(query).scalar()
     # {
     #     'data': [{
