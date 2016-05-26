@@ -4,6 +4,12 @@ Changelog
 Here you can see the full list of changes between each SQLAlchemy-JSON-API release.
 
 
+0.4.0 (2016-xx-xx)
+^^^^^^^^^^^^^^^^^^
+
+- Added type formatting
+
+
 0.3.0 (2015-08-18)
 ^^^^^^^^^^^^^^^^^^
 

@@ -12,4 +12,5 @@ Contents:
    compound_documents
    sorting
    filtering
+   type_formatting
    api

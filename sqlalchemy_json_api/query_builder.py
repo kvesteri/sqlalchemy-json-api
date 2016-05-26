@@ -77,10 +77,12 @@ class QueryBuilder(object):
         Base url to be used for building JSON API compatible links objects. By
         default this is `None` indicating that no link objects will be built.
     """
-    def __init__(self, model_mapping, base_url=None):
+    def __init__(self, model_mapping, base_url=None, type_formatters=None):
         self.validate_model_mapping(model_mapping)
         self.resource_registry = ResourceRegistry(model_mapping)
         self.base_url = base_url
+        if type_formatters is None:
+            self.type_formatters = {}
 
     def validate_model_mapping(self, model_mapping):
         for model in model_mapping.values():
@@ -444,11 +446,18 @@ class AttributesExpression(Expression):
         cols = get_attrs(self.from_obj)
         hybrids = get_hybrid_properties(self.model).keys()
         if attr_name in hybrids:
-            return ClauseAdapter(self.from_obj).traverse(
+            column = ClauseAdapter(self.from_obj).traverse(
                 getattr(self.model, attr_name)
             )
         else:
-            return getattr(cols, attr_name)
+            column = getattr(cols, attr_name)
+        return self.format_column(column)
+
+    def format_column(self, column):
+        for type_, formatter in self.query_builder.type_formatters.items():
+            if isinstance(column.type, type_):
+                return formatter(column)
+        return column
 
     def is_relationship_field(self, field):
         return field in get_mapper(self.model).relationships.keys()
