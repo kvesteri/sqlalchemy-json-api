@@ -405,3 +405,69 @@ class TestQueryBuilderSelect(object):
                 }
             }]
         }
+
+    @pytest.mark.parametrize(
+        ('limit', 'offset', 'results'),
+        (
+            (
+                3,
+                0,
+                [
+                    {
+                        'id': '1',
+                        'type': 'users'
+                    },
+                    {
+                        'id': '2',
+                        'type': 'users'
+                    },
+                    {
+                        'id': '3',
+                        'type': 'users'
+                    }
+                ]
+            ),
+            (
+                3,
+                2,
+                [
+                    {
+                        'id': '3',
+                        'type': 'users'
+                    },
+                    {
+                        'id': '4',
+                        'type': 'users'
+                    },
+                    {
+                        'id': '5',
+                        'type': 'users'
+                    }
+                ]
+            ),
+            (
+                1,
+                5,
+                []
+            ),
+        )
+    )
+    def test_limit_and_offset(
+        self,
+        query_builder,
+        session,
+        user_cls,
+        limit,
+        offset,
+        results
+    ):
+        query = query_builder.select(
+            user_cls,
+            sort=['id'],
+            fields={'users': []},
+            limit=limit,
+            offset=offset
+        )
+        assert session.execute(query).scalar() == {
+            'data': results
+        }

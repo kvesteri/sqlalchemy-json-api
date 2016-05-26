@@ -26,3 +26,16 @@ This parameter can be any SQLAlchemy selectable construct.
     #         },
     #     }]
     # }
+
+
+You can also limit the results by giving ``limit`` and ``offset`` parameters.
+
+::
+
+
+    query = query_builder.select(
+        Article,
+        fields={'articles': ['name']},
+        limit=5,
+        offset=10
+    )

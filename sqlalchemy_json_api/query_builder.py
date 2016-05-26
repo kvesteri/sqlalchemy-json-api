@@ -31,7 +31,10 @@ from .utils import (
     subpaths
 )
 
-Parameters = namedtuple('Parameters', ['fields', 'include', 'sort'])
+Parameters = namedtuple(
+    'Parameters',
+    ['fields', 'include', 'sort', 'offset', 'limit']
+)
 
 json_array = sa.cast(
     postgresql.array([], type_=JSON), postgresql.ARRAY(JSON)
@@ -243,6 +246,10 @@ class QueryBuilder(object):
             List of dot-separated relationship paths.
         :param sort:
             List of attributes to apply as an order by for the root model.
+        :param limit:
+            Applies an SQL LIMIT to the generated query.
+        :param limit:
+            Applies an SQL OFFSET to the generated query.
         :param links:
             A dictionary of links to apply as top level links in the built
             query. Keys representing json keys and values as valid urls or
@@ -342,6 +349,8 @@ class SelectExpression(Expression):
         fields=None,
         include=None,
         sort=None,
+        limit=None,
+        offset=None,
         links=None,
         multiple=True,
         ids_only=False,
@@ -354,7 +363,9 @@ class SelectExpression(Expression):
         params = Parameters(
             fields=fields,
             include=include,
-            sort=sort
+            sort=sort,
+            limit=limit,
+            offset=offset
         )
         from_args = self._get_from_args(
             params,
@@ -657,6 +668,10 @@ class DataExpression(Expression):
         query = sa.select([expr], from_obj=self.from_obj)
         if params.sort is not None:
             query = self.apply_sort(query, params.sort)
+        if params.limit is not None:
+            query = query.limit(params.limit)
+        if params.offset is not None:
+            query = query.offset(params.offset)
         return query
 
     def apply_sort(self, query, sort):
