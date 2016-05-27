@@ -402,7 +402,7 @@ class SelectExpression(Expression):
         )
         from_args = [data_query.as_scalar().label('data')]
 
-        if params.include is not None:
+        if params.include:
             selectable = get_selectable(self.from_obj).original
             if params.sort is not None:
                 selectable = apply_sort(selectable, selectable, params.sort)

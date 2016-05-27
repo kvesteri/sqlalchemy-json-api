@@ -265,6 +265,42 @@ class TestQueryBuilderSelect(object):
         ('fields', 'result'),
         (
             (
+                {'articles': ['comment_count']},
+                {
+                    'data': [{
+                        'type': 'articles',
+                        'id': '1',
+                        'attributes': {
+                            'comment_count': 4
+                        }
+                    }]
+                }
+            ),
+        )
+    )
+    def test_column_property_with_custom_from_obj(
+        self,
+        query_builder,
+        session,
+        article_cls,
+        fields,
+        result
+    ):
+        from_obj = session.query(article_cls).with_entities(
+            article_cls.id,
+            article_cls.comment_count
+        )
+        query = query_builder.select(
+            article_cls,
+            from_obj=from_obj,
+            fields=fields
+        )
+        assert session.execute(query).scalar() == result
+
+    @pytest.mark.parametrize(
+        ('fields', 'result'),
+        (
+            (
                 {'articles': ['name_upper']},
                 {
                     'data': [{

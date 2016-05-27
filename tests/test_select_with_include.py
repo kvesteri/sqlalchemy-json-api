@@ -652,3 +652,39 @@ class TestQueryBuilderSelectWithInclude(object):
             )
         )
         assert session.execute(query).scalar() == result
+
+    @pytest.mark.parametrize(
+        ('fields', 'include', 'result'),
+        (
+            (
+                {
+                    'users': [],
+                },
+                [],
+                {
+                    'data': [{
+                        'type': 'users',
+                        'id': '5'
+                    }]
+                }
+            ),
+        )
+    )
+    def test_empty_list_as_included(
+        self,
+        query_builder,
+        session,
+        user_cls,
+        fields,
+        include,
+        result
+    ):
+        query = query_builder.select(
+            user_cls,
+            fields=fields,
+            include=include,
+            from_obj=session.query(user_cls).filter(
+                user_cls.id == 5
+            )
+        )
+        assert session.execute(query).scalar() == result

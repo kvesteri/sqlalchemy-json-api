@@ -9,6 +9,7 @@ Here you can see the full list of changes between each SQLAlchemy-JSON-API relea
 
 - Added type formatting (#5)
 - Added limit and offset parameters (#6)
+- Fixed passing empty array as ``included`` parameter (#9)
 
 
 0.3.0 (2015-08-18)
