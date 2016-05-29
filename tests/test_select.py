@@ -219,7 +219,7 @@ class TestQueryBuilderSelect(object):
                         }
                     }]
                 }
-            )
+            ),
         )
     )
     def test_fields_parameter(
@@ -232,6 +232,35 @@ class TestQueryBuilderSelect(object):
     ):
         query = query_builder.select(article_cls, fields=fields)
         assert session.execute(query).scalar() == result
+
+    def test_custom_order_by_for_relationship(
+        self,
+        query_builder,
+        session,
+        article_cls,
+        comment_cls
+    ):
+        article_cls.comments.property.order_by = [sa.desc(comment_cls.id)]
+        query = query_builder.select(
+            article_cls,
+            fields={'articles': ['comments']}
+        )
+        assert session.execute(query).scalar() == {
+            'data': [{
+                'type': 'articles',
+                'id': '1',
+                'relationships': {
+                    'comments': {
+                        'data': [
+                            {'type': 'comments', 'id': '4'},
+                            {'type': 'comments', 'id': '3'},
+                            {'type': 'comments', 'id': '2'},
+                            {'type': 'comments', 'id': '1'}
+                        ]
+                    }
+                }
+            }]
+        }
 
     @pytest.mark.parametrize(
         ('fields', 'result'),

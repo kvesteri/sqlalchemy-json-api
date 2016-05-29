@@ -576,9 +576,16 @@ class RelationshipsExpression(Expression):
             relationship.key,
             alias,
             get_selectable(self.from_obj),
-            order_by=relationship.order_by
+            order_by=self.build_order_by(relationship, alias)
         ).alias('relationships')
         return query
+
+    def build_order_by(self, relationship, alias):
+        return (
+            relationship.order_by
+            if relationship.order_by is not False
+            else [alias.id]
+        )
 
     def build_relationship_data_array(self, relationship, alias):
         query = self.build_relationship_data(relationship, alias)

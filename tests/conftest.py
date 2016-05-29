@@ -157,7 +157,7 @@ def comment_cls(base, article_cls, user_cls):
         article_id = sa.Column(sa.Integer, sa.ForeignKey(article_cls.id))
         article = sa.orm.relationship(
             article_cls,
-            backref=sa.orm.backref('comments', order_by=id)
+            backref=sa.orm.backref('comments')
         )
 
         author_id = sa.Column(sa.Integer, sa.ForeignKey(user_cls.id))
