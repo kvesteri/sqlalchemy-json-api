@@ -474,7 +474,10 @@ class AttributesExpression(Expression):
     def adapt_attribute(self, attr_name):
         cols = get_attrs(self.from_obj)
         hybrids = get_hybrid_properties(self.model).keys()
-        if attr_name in hybrids:
+        if (
+            attr_name in hybrids or
+            attr_name in self.column_property_expressions
+        ):
             column = ClauseAdapter(self.from_obj).traverse(
                 getattr(self.model, attr_name)
             )
@@ -527,10 +530,25 @@ class AttributesExpression(Expression):
 
     def validate_fields(self, fields):
         descriptors = get_all_descriptors(self.from_obj)
+        hybrids = get_hybrid_properties(self.model)
+        expressions = self.column_property_expressions
+
         for field in fields:
-            if field in get_hybrid_properties(self.model):
+            if field in hybrids or field in expressions:
                 continue
             self.validate_field(field, descriptors)
+
+    @property
+    def column_property_expressions(self):
+        return dict([
+            (key, attr)
+            for key, attr
+            in get_mapper(self.model).attrs.items()
+            if (
+                isinstance(attr, sa.orm.ColumnProperty)
+                and not isinstance(attr.columns[0], sa.Column)
+            )
+        ])
 
     def get_model_fields(self, fields):
         model_key = self.query_builder.get_resource_type(self.model)

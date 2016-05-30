@@ -653,6 +653,24 @@ class TestQueryBuilderSelectWithInclude(object):
         )
         assert session.execute(query).scalar() == result
 
+    def test_hybrid_property_in_included_object(
+        self,
+        query_builder,
+        session,
+        category_cls,
+        comment_cls
+    ):
+        query = query_builder.select(
+            category_cls,
+            fields={'articles': ['comment_count']},
+            include=['articles'],
+            from_obj=session.query(category_cls).filter(
+                category_cls.id == 1
+            )
+        )
+        from pprint import pprint
+        pprint(session.execute(query).scalar())
+
     @pytest.mark.parametrize(
         ('fields', 'include', 'result'),
         (
