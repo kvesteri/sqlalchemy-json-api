@@ -14,6 +14,85 @@ def base():
 
 
 @pytest.fixture(scope='class')
+def organization_cls(base):
+    class Organization(base):
+        __tablename__ = 'organization'
+        id = sa.Column(sa.Integer, primary_key=True)
+        name = sa.Column(sa.String)
+
+    return Organization
+
+
+@pytest.fixture(scope='class')
+def organization_member_cls(base, organization_cls, user_cls):
+    class OrganizationMember(base):
+        __tablename__ = 'organization_member'
+        organization_id = sa.Column(
+            sa.Integer,
+            sa.ForeignKey(organization_cls.id),
+            primary_key=True
+        )
+        user_id = sa.Column(
+            sa.Integer,
+            sa.ForeignKey(user_cls.id),
+            primary_key=True
+        )
+        is_admin = sa.Column(sa.Boolean)
+        organization = sa.orm.relationship(
+            organization_cls,
+            backref='memberships'
+        )
+        user = sa.orm.relationship(user_cls, backref='memberships')
+
+        @hybrid_property
+        def id(self):
+            return str(self.organization_id) + ':' + str(self.user_id)
+
+        @id.expression
+        def id(cls):
+            return (
+                sa.func.concat(
+                    sa.cast(cls.organization_id, sa.String) +
+                    sa.text("':'") +
+                    sa.cast(cls.user_id, sa.String)
+                )
+            ).label('id')
+
+    return OrganizationMember
+
+
+@pytest.fixture(scope='class')
+def profile_picture_cls(
+    base,
+    organization_cls,
+    user_cls,
+    organization_member_cls
+):
+    class ProfilePicture(base):
+        __tablename__ = 'profile_picture'
+        id = sa.Column(sa.Integer, primary_key=True)
+        organization_id = sa.Column(
+            sa.Integer,
+            sa.ForeignKey(organization_cls.id)
+        )
+        user_id = sa.Column(
+            sa.Integer,
+            sa.ForeignKey(user_cls.id)
+        )
+        organization_member = sa.orm.relationship(
+            organization_member_cls,
+            primaryjoin=sa.and_(
+                sa.orm.foreign(organization_id) ==
+                organization_member_cls.organization_id,
+                sa.orm.foreign(user_id) ==
+                organization_member_cls.user_id
+            ),
+            backref='profile_pictures'
+        )
+    return ProfilePicture
+
+
+@pytest.fixture(scope='class')
 def group_user_cls(base):
     return sa.Table(
         'group_user',
@@ -201,13 +280,25 @@ def connection(engine):
 
 
 @pytest.fixture(scope='class')
-def model_mapping(article_cls, category_cls, comment_cls, group_cls, user_cls):
+def model_mapping(
+    article_cls,
+    category_cls,
+    comment_cls,
+    group_cls,
+    user_cls,
+    organization_cls,
+    organization_member_cls,
+    profile_picture_cls
+):
     return {
         'articles': article_cls,
         'categories': category_cls,
         'comments': comment_cls,
         'groups': group_cls,
-        'users': user_cls
+        'users': user_cls,
+        'organizations': organization_cls,
+        'organization_members': organization_member_cls,
+        'profile_pictures': profile_picture_cls
     }
 
 

@@ -600,3 +600,20 @@ class TestQueryBuilderSelect(object):
             offset=offset
         )
         assert session.execute(query).scalar() == result
+
+    def test_relationship_order_by_id_with_id_as_hybrid(
+        self,
+        query_builder,
+        session,
+        user_cls
+    ):
+        query = query_builder.select(
+            user_cls,
+            fields={'users': []},
+            include=['memberships.profile_pictures']
+        )
+        from pprint import pprint
+        from sqlalchemy.dialects import postgresql
+
+        pprint(str(query.compile(dialect=postgresql.dialect())))
+        session.execute(query).scalar()
