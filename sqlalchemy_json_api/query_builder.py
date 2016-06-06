@@ -545,8 +545,8 @@ class AttributesExpression(Expression):
             for key, attr
             in get_mapper(self.model).attrs.items()
             if (
-                isinstance(attr, sa.orm.ColumnProperty)
-                and not isinstance(attr.columns[0], sa.Column)
+                isinstance(attr, sa.orm.ColumnProperty) and
+                not isinstance(attr.columns[0], sa.Column)
             )
         ])
 
