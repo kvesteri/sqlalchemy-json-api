@@ -602,7 +602,14 @@ class RelationshipsExpression(Expression):
     def build_order_by(self, relationship, alias):
         if relationship.order_by is not False:
             return relationship.order_by
-        if isinstance(alias.id, Label):
+
+        if (
+            (
+                hasattr(alias.id, 'expression') and
+                isinstance(alias.id.expression, Label)
+            ) or
+            isinstance(alias.id, Label)
+        ):
             return alias.id.get_children()
         return [alias.id]
 

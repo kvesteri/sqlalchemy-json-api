@@ -9,6 +9,8 @@ Here you can see the full list of changes between each SQLAlchemy-JSON-API relea
 
 - Fixed unambiguous column reference passed for relationship order by (#10)
 - Dropped python 2.6 support
+- Added python 3.5 to test matrix
+- Added SQLAlchemy 1.1 to test matrix
 
 
 0.4.0 (2016-06-06)

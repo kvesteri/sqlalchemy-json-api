@@ -10,8 +10,13 @@ python:
   - 3.3
   - 3.4
   - 3.5
+env:
+  matrix:
+    - SQLALCHEMY=SQLAlchemy>=1.0,<1.1
+    - SQLALCHEMY=SQLAlchemy>=1.1
 
 install:
+  - "pip install $SQLALCHEMY"
   - pip install -e .[test]
 
 script:
