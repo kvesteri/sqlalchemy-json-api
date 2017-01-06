@@ -4,7 +4,7 @@ Changelog
 Here you can see the full list of changes between each SQLAlchemy-JSON-API release.
 
 
-0.4.1 (2016-06-01)
+0.4.1 (2017-01-06)
 ^^^^^^^^^^^^^^^^^^
 
 - Fixed unambiguous column reference passed for relationship order by (#10)
