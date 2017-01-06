@@ -8,6 +8,7 @@ Here you can see the full list of changes between each SQLAlchemy-JSON-API relea
 ^^^^^^^^^^^^^^^^^^
 
 - Fixed unambiguous column reference passed for relationship order by (#10)
+- Dropped python 2.6 support
 
 
 0.4.0 (2016-06-06)
