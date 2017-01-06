@@ -5,6 +5,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSON, JSONB
 from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.sql.elements import Label
 from sqlalchemy.sql.expression import union
 from sqlalchemy.sql.util import ClauseAdapter
 from sqlalchemy_utils import get_hybrid_properties
@@ -599,11 +600,11 @@ class RelationshipsExpression(Expression):
         return query
 
     def build_order_by(self, relationship, alias):
-        return (
-            relationship.order_by
-            if relationship.order_by is not False
-            else [alias.id]
-        )
+        if relationship.order_by is not False:
+            return relationship.order_by
+        if isinstance(alias.id, Label):
+            return alias.id.get_children()
+        return [alias.id]
 
     def build_relationship_data_array(self, relationship, alias):
         query = self.build_relationship_data(relationship, alias)

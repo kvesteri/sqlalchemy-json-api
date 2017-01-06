@@ -34,6 +34,54 @@ def group_cls(base):
 
 
 @pytest.fixture(scope='class')
+def organization_cls(base):
+    class Organization(base):
+        __tablename__ = 'organization'
+        id = sa.Column(sa.Integer, primary_key=True)
+        name = sa.Column(sa.String)
+
+    return Organization
+
+
+@pytest.fixture(scope='class')
+def organization_membership_cls(base, organization_cls, user_cls):
+    class OrganizationMembership(base):
+        __tablename__ = 'organization_membership'
+        organization_id = sa.Column(
+            sa.Integer,
+            sa.ForeignKey('organization.id'),
+            primary_key=True
+        )
+        user_id = sa.Column(
+            sa.Integer,
+            sa.ForeignKey('user.id'),
+            primary_key=True
+        )
+        user = sa.orm.relationship(user_cls, backref='memberships')
+        organization = sa.orm.relationship(organization_cls, backref='members')
+
+        is_admin = sa.Column(
+            sa.Boolean,
+            nullable=False,
+            default=False,
+        )
+
+        @hybrid_property
+        def id(self):
+            return '{0}:{1}'.format(self.organization_id, self.user_id)
+
+        @id.expression
+        def id(cls):
+            return sa.func.concat(
+                cls.organization_id,
+                sa.text("':'"),
+                cls.user_id
+            ).label('id')
+
+    return OrganizationMembership
+
+
+@pytest.fixture(scope='class')
 def friendship_cls(base):
     return sa.Table(
         'friendships',
@@ -201,13 +249,23 @@ def connection(engine):
 
 
 @pytest.fixture(scope='class')
-def model_mapping(article_cls, category_cls, comment_cls, group_cls, user_cls):
+def model_mapping(
+    article_cls,
+    category_cls,
+    comment_cls,
+    group_cls,
+    user_cls,
+    organization_cls,
+    organization_membership_cls
+):
     return {
         'articles': article_cls,
         'categories': category_cls,
         'comments': comment_cls,
         'groups': group_cls,
-        'users': user_cls
+        'users': user_cls,
+        'organizations': organization_cls,
+        'memberships': organization_membership_cls
     }
 
 
@@ -234,11 +292,34 @@ def dataset(
     group_cls,
     article_cls,
     category_cls,
-    comment_cls
+    comment_cls,
+    organization_cls,
+    organization_membership_cls
 ):
+    organization = organization_cls(name='Organization 1')
+    organization2 = organization_cls(name='Organization 2')
+    organization3 = organization_cls(name='Organization 3')
     group = group_cls(name='Group 1')
     group2 = group_cls(name='Group 2')
-    user = user_cls(id=1, name='User 1', groups=[group, group2])
+    user = user_cls(
+        id=1,
+        name='User 1',
+        groups=[group, group2],
+        memberships=[
+            organization_membership_cls(
+                organization=organization,
+                is_admin=True
+            ),
+            organization_membership_cls(
+                organization=organization2,
+                is_admin=True
+            ),
+            organization_membership_cls(
+                organization=organization3,
+                is_admin=True
+            )
+        ]
+    )
     user2 = user_cls(id=2, name='User 2')
     user3 = user_cls(id=3, name='User 3', groups=[group])
     user4 = user_cls(id=4, name='User 4', groups=[group2])

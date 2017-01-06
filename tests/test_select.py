@@ -219,7 +219,7 @@ class TestQueryBuilderSelect(object):
                         }
                     }]
                 }
-            ),
+            )
         )
     )
     def test_fields_parameter(
@@ -232,6 +232,80 @@ class TestQueryBuilderSelect(object):
     ):
         query = query_builder.select(article_cls, fields=fields)
         assert session.execute(query).scalar() == result
+
+    def test_association_class_relationship_fetching(
+        self,
+        query_builder,
+        session,
+        user_cls,
+        organization_membership_cls
+    ):
+        query = query_builder.select(
+            user_cls,
+            fields={'users': ['memberships']},
+            sort=['id'],
+            from_obj=session.query(user_cls).filter(user_cls.id == 1)
+        )
+        assert session.execute(query).scalar() == {
+            'data': [
+                {
+                    'relationships': {
+                        'memberships': {
+                            'data': [
+                                {'type': 'memberships', 'id': '1:1'},
+                                {'type': 'memberships', 'id': '2:1'},
+                                {'type': 'memberships', 'id': '3:1'}
+                            ]
+                        }
+                    },
+                    'type': 'users',
+                    'id': '1'
+                },
+            ]
+        }
+
+    def test_association_class_relationship_fetching_with_include(
+        self,
+        query_builder,
+        session,
+        article_cls
+    ):
+        query = query_builder.select(
+            article_cls,
+            fields={
+                'articles': ['author'],
+                'users': ['memberships']
+            },
+            include=['author']
+        )
+        assert session.execute(query).scalar() == {
+            'included': [
+                {
+                    'relationships': {
+                        'memberships': {
+                            'data': [
+                                {'type': 'memberships', 'id': '1:1'},
+                                {'type': 'memberships', 'id': '2:1'},
+                                {'type': 'memberships', 'id': '3:1'}
+                            ]
+                        }
+                    },
+                    'type': 'users',
+                    'id': '1'
+                }
+            ],
+            'data': [
+                {
+                    'relationships': {
+                        'author': {
+                            'data': {'type': 'users', 'id': '1'}
+                        }
+                    },
+                    'type': 'articles',
+                    'id': '1'
+                }
+            ]
+        }
 
     def test_custom_order_by_for_relationship(
         self,
