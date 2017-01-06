@@ -28,7 +28,7 @@ extras_require = {
         'six>=1.4.1',
         'psycopg2>=2.6.1',
         'flake8>=2.4.0',
-        'isort==3.9.6',
+        'isort==4.2.5',
         'natsort==3.5.6',
     ],
 }
