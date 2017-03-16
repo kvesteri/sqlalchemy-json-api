@@ -296,6 +296,33 @@ class TestSelectRelationshipWithLinks(object):
         query = query_builder.select_related(
             session.query(category_cls).get(id),
             'parent',
-            fields={'categories': []}
+            fields={'categories': []},
+            session=session
         )
         assert session.execute(query).scalar() == result
+
+    @pytest.mark.parametrize(
+        ('id', 'result'),
+        (
+            (
+                1,
+                {'data': None}
+            ),
+        )
+    )
+    def test_empty_result_as_text(
+        self,
+        query_builder,
+        session,
+        category_cls,
+        id,
+        result
+    ):
+        query = query_builder.select_related(
+            session.query(category_cls).get(id),
+            'parent',
+            fields={'categories': []},
+            session=session,
+            as_text=True
+        )
+        assert json.loads(session.execute(query).scalar()) == result

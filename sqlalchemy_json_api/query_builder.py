@@ -201,7 +201,22 @@ class QueryBuilder(object):
         from_obj = kwargs.pop('from_obj', None)
         if from_obj is None:
             from_obj = sa.orm.query.Query(model)
-        from_obj = from_obj.filter(prop._with_parent(obj))
+
+        # SQLAlchemy Query.with_parent throws warning if the primary object
+        # foreign key is NULL. Thus we need this ugly magic to return empty
+        # data in that scenario.
+        if (
+            prop.direction.name == 'MANYTOONE' and
+            not prop.secondary and
+            getattr(obj, prop.local_remote_pairs[0][0].key) is None
+        ):
+            expr = sa.cast({'data': None}, JSONB)
+            if kwargs.get('as_text'):
+                expr = sa.cast(expr, sa.Text)
+            return sa.select([expr])
+
+        from_obj = from_obj.with_parent(obj, prop)
+
         if prop.order_by:
             from_obj = from_obj.order_by(*prop.order_by)
 
@@ -267,7 +282,18 @@ class QueryBuilder(object):
         if from_obj is None:
             from_obj = sa.orm.query.Query(model)
 
-        from_obj = from_obj.subquery()
+        if kwargs.get('sort') is not None:
+            from_obj = apply_sort(
+                from_obj.statement,
+                from_obj,
+                kwargs.get('sort')
+            )
+        if kwargs.get('limit') is not None:
+            from_obj = from_obj.limit(kwargs.get('limit'))
+        if kwargs.get('offset') is not None:
+            from_obj = from_obj.offset(kwargs.get('offset'))
+
+        from_obj = from_obj.cte('main_query')
 
         return SelectExpression(self, model, from_obj).build_select(**kwargs)
 
@@ -404,17 +430,11 @@ class SelectExpression(Expression):
         from_args = [data_query.as_scalar().label('data')]
 
         if params.include:
-            selectable = get_selectable(self.from_obj).original
-            if params.sort is not None:
-                selectable = apply_sort(selectable, selectable, params.sort)
-            if params.limit is not None:
-                selectable = selectable.limit(params.limit)
-            if params.offset is not None:
-                selectable = selectable.offset(params.offset)
+            selectable = self.from_obj
             include_expr = IncludeExpression(
                 self.query_builder,
                 self.model,
-                selectable.alias()
+                selectable
             )
             included_query = include_expr.build_included(params)
             from_args.append(included_query.as_scalar().label('included'))
@@ -717,12 +737,6 @@ class DataExpression(Expression):
     def build_data(self, params, ids_only=False):
         expr = self.build_data_expr(params, ids_only=ids_only)
         query = sa.select([expr], from_obj=self.from_obj)
-        if params.sort is not None:
-            query = apply_sort(self.from_obj, query, params.sort)
-        if params.limit is not None:
-            query = query.limit(params.limit)
-        if params.offset is not None:
-            query = query.offset(params.offset)
         return query
 
     def build_data_array(self, params, ids_only=False):
@@ -797,7 +811,7 @@ class IncludeExpression(Expression):
             expr,
             path,
             alias,
-            get_selectable(self.from_obj),
+            self.from_obj,
             correlate=False
         ).distinct()
         if cls is self.model:

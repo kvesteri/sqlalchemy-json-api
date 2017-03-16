@@ -668,8 +668,37 @@ class TestQueryBuilderSelectWithInclude(object):
                 category_cls.id == 1
             )
         )
-        from pprint import pprint
-        pprint(session.execute(query).scalar())
+        assert session.execute(query).scalar() == {
+            'included': [
+                {
+                    'attributes': {'comment_count': 4},
+                    'type': 'articles',
+                    'id': '1'
+                }
+            ],
+            'data': [
+                {
+                    'relationships': {
+                        'articles': {
+                            'data': [{'type': 'articles', 'id': '1'}]
+                        },
+                        'subcategories': {
+                            'data': [
+                                {'type': 'categories', 'id': '2'},
+                                {'type': 'categories', 'id': '4'}
+                            ]
+                        },
+                        'parent': {'data': None}
+                    },
+                    'attributes': {
+                        'created_at': None,
+                        'name': 'Some category'
+                    },
+                    'type': 'categories',
+                    'id': '1'
+                }
+            ]
+        }
 
     @pytest.mark.parametrize(
         ('fields', 'include', 'result'),

@@ -459,7 +459,7 @@ class TestQueryBuilderSelect(object):
             from_obj=session.query(article_cls)
         )
         compiled = query.compile(dialect=sa.dialects.postgresql.dialect())
-        assert 'upper(anon_2.name)' in str(compiled)
+        assert 'upper(main_query.name)' in str(compiled)
 
     @pytest.mark.parametrize(
         ('fields', 'include', 'result'),

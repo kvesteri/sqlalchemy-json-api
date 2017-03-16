@@ -1,3 +1,5 @@
+import warnings
+
 import pytest
 import sqlalchemy as sa
 from sqlalchemy import create_engine
@@ -6,6 +8,8 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import sessionmaker
 
 from sqlalchemy_json_api import QueryBuilder
+
+warnings.filterwarnings('error')
 
 
 @pytest.fixture(scope='class')
@@ -231,7 +235,7 @@ def composite_pk_cls(base):
 
 @pytest.fixture(scope='class')
 def dns():
-    return 'postgres://postgres@localhost/sqlalchemy_json_api_test'
+    return 'postgresql://postgres@localhost/sqlalchemy_json_api_test'
 
 
 @pytest.yield_fixture(scope='class')
