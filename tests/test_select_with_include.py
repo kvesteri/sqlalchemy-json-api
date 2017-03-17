@@ -1,5 +1,7 @@
 import pytest
 
+from sqlalchemy_json_api import assert_json_document
+
 
 @pytest.mark.usefixtures('table_creator', 'dataset')
 class TestQueryBuilderSelectWithInclude(object):
@@ -735,3 +737,95 @@ class TestQueryBuilderSelectWithInclude(object):
             )
         )
         assert session.execute(query).scalar() == result
+
+    @pytest.mark.parametrize(
+        ('fields', 'include', 'result'),
+        (
+            (
+                {
+                    'articles': ['name', 'content', 'category'],
+                    'categories': ['name', 'subcategories'],
+                },
+                ['category.subcategories.subcategories'],
+                {
+                    'data': [{
+                        'type': 'articles',
+                        'id': '1',
+                        'attributes': {
+                            'name': 'Some article',
+                            'content': None
+                        },
+                        'relationships': {
+                            'category': {
+                                'data': {'type': 'categories', 'id': '1'}
+                            }
+                        }
+                    }],
+                    'included': [
+                        {
+                            'type': 'categories',
+                            'id': '1',
+                            'attributes': {'name': 'Some category'},
+                            'relationships': {
+                                'subcategories': {
+                                    'data': [
+                                        {'type': 'categories', 'id': '2'},
+                                        {'type': 'categories', 'id': '4'}
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            'type': 'categories',
+                            'id': '2',
+                            'attributes': {'name': 'Subcategory 1'},
+                            'relationships': {
+                                'subcategories': {
+                                    'data': [{'type': 'categories', 'id': '3'}]
+                                }
+                            }
+                        },
+                        {
+                            'type': 'categories',
+                            'id': '3',
+                            'attributes': {'name': 'Subsubcategory 1'},
+                            'relationships': {
+                                'subcategories': {
+                                    'data': [
+                                        {'type': 'categories', 'id': '5'},
+                                        {'type': 'categories', 'id': '6'}
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            'type': 'categories',
+                            'id': '4',
+                            'attributes': {'name': 'Subcategory 2'},
+                            'relationships': {
+                                'subcategories': {
+                                    'data': []
+                                }
+                            }
+                        },
+                    ]
+                }
+            ),
+        )
+    )
+    def test_sort_included_as_false(
+        self,
+        query_builder,
+        session,
+        article_cls,
+        fields,
+        include,
+        result
+    ):
+        query_builder.sort_included = False
+        query = query_builder.select(
+            article_cls,
+            fields=fields,
+            include=include
+        )
+        assert_json_document(session.execute(query).scalar(), result)

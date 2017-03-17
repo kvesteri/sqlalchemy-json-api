@@ -101,12 +101,15 @@ class QueryBuilder(object):
         default this is `None` indicating that no link objects will be built.
     :param type_formatters:
         A dictionary of type formatters
+    :param sort_included:
+        Whether or not to sort included objects by type and id.
     """
     def __init__(
         self,
         model_mapping,
         base_url=None,
-        type_formatters=None
+        type_formatters=None,
+        sort_included=True
     ):
         self.validate_model_mapping(model_mapping)
         self.resource_registry = ResourceRegistry(model_mapping)
@@ -114,6 +117,7 @@ class QueryBuilder(object):
         self.type_formatters = (
             {} if type_formatters is None else type_formatters
         )
+        self.sort_included = sort_included
 
     def validate_model_mapping(self, model_mapping):
         for model in model_mapping.values():
@@ -785,13 +789,16 @@ class IncludeExpression(Expression):
         ]
 
         union_select = union(*selects).alias()
-        return sa.select(
+        query = sa.select(
             [union_select.c.included.label('included')],
             from_obj=union_select
-        ).order_by(
-            union_select.c.included[s('type')],
-            union_select.c.included[s('id')]
         )
+        if self.query_builder.sort_included:
+            query = query.order_by(
+                union_select.c.included[s('type')],
+                union_select.c.included[s('id')]
+            )
+        return query
 
     def build_included(self, params):
         included_union = self.build_included_union(params).alias()

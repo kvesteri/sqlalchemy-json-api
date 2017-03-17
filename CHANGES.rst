@@ -10,6 +10,7 @@ Here you can see the full list of changes between each SQLAlchemy-JSON-API relea
 - Fixed SQLAlchemy warnings
 - Made query builder use CTEs for better performance and simpler queries
 - Smarter limit and offset
+- Added sort_included parameter for QueryBuilder
 
 
 0.4.1 (2017-01-06)

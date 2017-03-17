@@ -61,3 +61,22 @@ def chain_if(*args):
     if args:
         return chain(*args)
     return []
+
+
+def _included_sort_key(value):
+    return (value['type'], value['id'])
+
+
+def assert_json_document(value, expected):
+    assert value.keys() == expected.keys()
+    for key in expected.keys():
+        if key == 'included':
+            assert sorted(
+                expected[key],
+                key=_included_sort_key
+            ) == sorted(
+                value[key],
+                key=_included_sort_key
+            )
+        else:
+            assert expected[key] == value[key]
