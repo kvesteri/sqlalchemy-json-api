@@ -4,6 +4,14 @@ Changelog
 Here you can see the full list of changes between each SQLAlchemy-JSON-API release.
 
 
+0.4.2 (2017-03-17)
+^^^^^^^^^^^^^^^^^^
+
+- Fixed SQLAlchemy warnings
+- Made query builder use CTEs for better performance and simpler queries
+- Smarter limit and offset
+
+
 0.4.1 (2017-01-06)
 ^^^^^^^^^^^^^^^^^^
 
