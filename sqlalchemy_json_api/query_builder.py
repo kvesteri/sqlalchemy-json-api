@@ -60,6 +60,7 @@ class ResourceRegistry(object):
 
 class QueryBuilder(object):
     """
+    1. Simple example
     ::
 
         query_builder = QueryBuilder({
@@ -67,6 +68,24 @@ class QueryBuilder(object):
             'users': User,
             'comments': Comment
         })
+
+    2. Example using type formatters::
+
+
+        def isoformat(date):
+            return sa.func.to_char(
+                date,
+                sa.text('\'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\'')
+            ).label(date.name)
+
+        query_builder = QueryBuilder(
+            {
+                'articles': Article,
+                'users': User,
+                'comments': Comment
+            },
+            type_formatters={sa.DateTime: isoformat}
+        )
 
 
     :param model_mapping:
@@ -80,8 +99,15 @@ class QueryBuilder(object):
     :param base_url:
         Base url to be used for building JSON API compatible links objects. By
         default this is `None` indicating that no link objects will be built.
+    :param type_formatters:
+        A dictionary of type formatters
     """
-    def __init__(self, model_mapping, base_url=None, type_formatters=None):
+    def __init__(
+        self,
+        model_mapping,
+        base_url=None,
+        type_formatters=None
+    ):
         self.validate_model_mapping(model_mapping)
         self.resource_registry = ResourceRegistry(model_mapping)
         self.base_url = base_url
