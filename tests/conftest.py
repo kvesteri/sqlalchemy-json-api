@@ -168,8 +168,16 @@ def article_cls(base, category_cls, user_cls):
     class Article(base):
         __tablename__ = 'article'
         id = sa.Column(sa.Integer, primary_key=True)
-        name = sa.Column(sa.String)
+        _name = sa.Column('name', sa.String)
         name_synonym = sa.orm.synonym('name')
+
+        @hybrid_property
+        def name(self):
+            return self._name
+
+        @name.setter
+        def name(self, name):
+            self._name = name
 
         @hybrid_property
         def name_upper(self):

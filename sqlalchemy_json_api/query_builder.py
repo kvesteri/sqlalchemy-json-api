@@ -24,6 +24,7 @@ from .exc import (
     UnknownModel
 )
 from .utils import (
+    adapt,
     chain_if,
     get_attrs,
     get_descriptor_columns,
@@ -529,9 +530,7 @@ class AttributesExpression(Expression):
             attr_name in hybrids or
             attr_name in self.column_property_expressions
         ):
-            column = ClauseAdapter(self.from_obj).traverse(
-                getattr(self.model, attr_name)
-            )
+            column = adapt(self.from_obj, getattr(self.model, attr_name))
         else:
             column = getattr(cols, attr_name)
         return self.format_column(column)

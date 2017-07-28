@@ -2,6 +2,14 @@ from itertools import chain
 
 import sqlalchemy as sa
 from sqlalchemy.orm.attributes import InstrumentedAttribute, QueryableAttribute
+from sqlalchemy.sql.util import ClauseAdapter
+
+
+def adapt(adapt_with, expression):
+    if isinstance(expression.expression, sa.Column):
+        cols = get_attrs(adapt_with)
+        return getattr(cols, expression.name)
+    return ClauseAdapter(adapt_with).traverse(expression)
 
 
 def get_attrs(obj):

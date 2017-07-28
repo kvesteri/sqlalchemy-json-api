@@ -429,16 +429,30 @@ class TestQueryBuilderSelect(object):
         assert session.execute(query).scalar() == result
 
     @pytest.mark.parametrize(
-        ('fields', 'result'),
+        ('fields', 'should_contain_sql', 'result'),
         (
             (
                 {'articles': ['name_upper']},
+                'upper(main_query.name)',
                 {
                     'data': [{
                         'type': 'articles',
                         'id': '1',
                         'attributes': {
                             'name_upper': 'SOME ARTICLE'
+                        }
+                    }]
+                }
+            ),
+            (
+                {'articles': ['name']},
+                'main_query.name',
+                {
+                    'data': [{
+                        'type': 'articles',
+                        'id': '1',
+                        'attributes': {
+                            'name': 'Some article'
                         }
                     }]
                 }
@@ -451,7 +465,8 @@ class TestQueryBuilderSelect(object):
         session,
         article_cls,
         fields,
-        result
+        result,
+        should_contain_sql
     ):
         query = query_builder.select(
             article_cls,
@@ -459,7 +474,8 @@ class TestQueryBuilderSelect(object):
             from_obj=session.query(article_cls)
         )
         compiled = query.compile(dialect=sa.dialects.postgresql.dialect())
-        assert 'upper(main_query.name)' in str(compiled)
+        assert should_contain_sql in str(compiled)
+        assert session.execute(query).scalar() == result
 
     @pytest.mark.parametrize(
         ('fields', 'include', 'result'),
