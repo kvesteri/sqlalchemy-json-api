@@ -8,4 +8,4 @@ from .exc import (  # noqa
 from .query_builder import QueryBuilder, RESERVED_KEYWORDS  # noqa
 from .utils import assert_json_document  # noqa
 
-__version__ = '0.4.3'
+__version__ = '0.4.4'

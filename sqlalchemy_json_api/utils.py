@@ -9,6 +9,8 @@ def adapt(adapt_with, expression):
     if isinstance(expression.expression, sa.Column):
         cols = get_attrs(adapt_with)
         return getattr(cols, expression.name)
+    if not hasattr(adapt_with, 'is_derived_from'):
+        adapt_with = sa.inspect(adapt_with).selectable
     return ClauseAdapter(adapt_with).traverse(expression)
 
 

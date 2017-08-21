@@ -4,6 +4,12 @@ Changelog
 Here you can see the full list of changes between each SQLAlchemy-JSON-API release.
 
 
+0.4.4 (2017-07-28)
+^^^^^^^^^^^^^^^^^^
+
+- Fixed hybrid property inspection for from_obj
+
+
 0.4.3 (2017-07-28)
 ^^^^^^^^^^^^^^^^^^
 

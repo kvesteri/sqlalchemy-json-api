@@ -147,7 +147,14 @@ class QueryBuilder(object):
         model_alias = self.get_resource_type(model)
         return [
             s('id'),
-            self.get_id(from_obj),
+            cast_if(
+                AttributesExpression(
+                    self,
+                    model,
+                    from_obj
+                ).adapt_attribute('id'),
+                sa.String
+            ),
             s('type'),
             s(model_alias),
         ]

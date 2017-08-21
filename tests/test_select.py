@@ -690,3 +690,50 @@ class TestQueryBuilderSelect(object):
             offset=offset
         )
         assert session.execute(query).scalar() == result
+
+    def test_hybrid_property_inspection_from_query(
+        self,
+        query_builder,
+        session,
+        organization_membership_cls
+    ):
+        query = query_builder.select(
+            organization_membership_cls,
+            from_obj=session.query(organization_membership_cls)
+        )
+        assert session.execute(query).scalar() == {
+            'data': [
+                {
+                    'relationships': {
+                        'organization': {
+                            'data': {'type': 'organizations', 'id': '1'}
+                        },
+                        'user': {'data': {'type': 'users', 'id': '1'}}
+                    },
+                    'attributes': {'is_admin': True},
+                    'type': 'memberships',
+                    'id': '1:1'
+                },
+                {
+                    'relationships': {
+                        'organization': {
+                            'data': {'type': 'organizations', 'id': '2'}
+                        },
+                        'user': {'data': {'type': 'users', 'id': '1'}}
+                    },
+                    'attributes': {'is_admin': True},
+                    'type': 'memberships',
+                    'id': '2:1'
+                },
+                {
+                    'relationships': {
+                        'organization': {
+                            'data': {'type': 'organizations', 'id': '3'}
+                        },
+                        'user': {'data': {'type': 'users', 'id': '1'}}
+                    },
+                    'attributes': {'is_admin': True},
+                    'type': 'memberships', 'id': '3:1'
+                }
+            ]
+        }
