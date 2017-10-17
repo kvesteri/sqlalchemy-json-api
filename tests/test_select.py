@@ -336,6 +336,57 @@ class TestQueryBuilderSelect(object):
             }]
         }
 
+    def test_custom_order_by_for_m2m_relationship(
+        self,
+        query_builder,
+        session,
+        user_cls,
+        group_user_cls
+    ):
+        user_cls.groups.property.order_by = [
+            sa.desc(group_user_cls.c.group_id)
+        ]
+        from_obj = session.query(user_cls).filter(user_cls.id == 1)
+        query = query_builder.select(
+            user_cls,
+            from_obj=from_obj,
+            fields={'users': ['groups']}
+        )
+        assert session.execute(query).scalar() == {
+            'data': [{
+                'type': 'users',
+                'id': '1',
+                'relationships': {
+                    'groups': {
+                        'data': [
+                            {'type': 'groups', 'id': '2'},
+                            {'type': 'groups', 'id': '1'},
+                        ]
+                    }
+                }
+            }]
+        }
+        user_cls.groups.property.order_by = [group_user_cls.c.group_id]
+        query = query_builder.select(
+            user_cls,
+            from_obj=from_obj,
+            fields={'users': ['groups']}
+        )
+        assert session.execute(query).scalar() == {
+            'data': [{
+                'type': 'users',
+                'id': '1',
+                'relationships': {
+                    'groups': {
+                        'data': [
+                            {'type': 'groups', 'id': '1'},
+                            {'type': 'groups', 'id': '2'},
+                        ]
+                    }
+                }
+            }]
+        }
+
     @pytest.mark.parametrize(
         ('fields', 'result'),
         (

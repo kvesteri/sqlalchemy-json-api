@@ -4,6 +4,13 @@ Changelog
 Here you can see the full list of changes between each SQLAlchemy-JSON-API release.
 
 
+0.4.5 (2017-07-28)
+^^^^^^^^^^^^^^^^^^
+
+- Fixed intermediate table aliasing with custom relationship property order by
+- Updated SQLAlchemy-Utils dependency to 0.32.19
+
+
 0.4.4 (2017-07-28)
 ^^^^^^^^^^^^^^^^^^
 
