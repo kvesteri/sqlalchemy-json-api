@@ -4,6 +4,12 @@ Changelog
 Here you can see the full list of changes between each SQLAlchemy-JSON-API release.
 
 
+0.4.6 (2018-01-02)
+^^^^^^^^^^^^^^^^^^
+
+- Added support for Hybrid Value object pattern. In other words hybrid properties returning comparator classes (#14).
+
+
 0.4.5 (2017-07-28)
 ^^^^^^^^^^^^^^^^^^
 
