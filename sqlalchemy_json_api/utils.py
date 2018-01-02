@@ -11,7 +11,7 @@ def adapt(adapt_with, expression):
         return getattr(cols, expression.name)
     if not hasattr(adapt_with, 'is_derived_from'):
         adapt_with = sa.inspect(adapt_with).selectable
-    return ClauseAdapter(adapt_with).traverse(expression)
+    return ClauseAdapter(adapt_with).traverse(expression.expression)
 
 
 def get_attrs(obj):
