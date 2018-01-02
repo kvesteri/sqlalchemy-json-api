@@ -4,12 +4,40 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.hybrid import Comparator, hybrid_property
 from sqlalchemy.orm import sessionmaker
 
 from sqlalchemy_json_api import QueryBuilder
 
 warnings.filterwarnings('error')
+
+
+class CompositeId(Comparator):
+    def __init__(self, keys, separator=':', label='id'):
+        self.keys = keys
+        self.separator = separator
+        self.label = label
+
+    def operate(self, op, other):
+        if not isinstance(other, CompositeId):
+            other = CompositeId(other)
+        return sa.and_(
+            op(key, other_key)
+            for key, other_key in zip(self.keys, other.keys)
+        )
+
+    def __clause_element__(self):
+        parts = [self.keys[0]]
+        for key in self.keys[1:]:
+            parts.append(sa.text("'{}'".format(self.separator)))
+            parts.append(key)
+        return sa.func.concat(*parts).label(self.label)
+
+    def __str__(self):
+        return self.separator.join(str(k) for k in self.keys)
+
+    def __repr__(self):
+        return '<CompositeId {}>'.format(repr(self.keys))
 
 
 @pytest.fixture(scope='class')
@@ -72,15 +100,7 @@ def organization_membership_cls(base, organization_cls, user_cls):
 
         @hybrid_property
         def id(self):
-            return '{0}:{1}'.format(self.organization_id, self.user_id)
-
-        @id.expression
-        def id(cls):
-            return sa.func.concat(
-                cls.organization_id,
-                sa.text("':'"),
-                cls.user_id
-            ).label('id')
+            return CompositeId([self.organization_id, self.user_id])
 
     return OrganizationMembership
 

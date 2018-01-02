@@ -7,7 +7,6 @@ from sqlalchemy.dialects.postgresql import JSON, JSONB
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.elements import Label
 from sqlalchemy.sql.expression import union
-from sqlalchemy.sql.util import ClauseAdapter
 from sqlalchemy_utils import get_hybrid_properties
 from sqlalchemy_utils.functions import cast_if, get_mapper
 from sqlalchemy_utils.functions.orm import get_all_descriptors
@@ -522,9 +521,7 @@ class AttributesExpression(Expression):
             [
                 (
                     key,
-                    ClauseAdapter(self.from_obj).traverse(
-                        getattr(self.model, key)
-                    )
+                    adapt(self.from_obj, getattr(self.model, key))
                 )
                 for key in get_hybrid_properties(self.model).keys()
             ]
@@ -666,7 +663,7 @@ class RelationshipsExpression(Expression):
             ) or
             isinstance(alias.id, Label)
         ):
-            return alias.id.get_children()
+            return alias.id.expression.get_children()
         return [alias.id]
 
     def build_relationship_data_array(self, relationship, alias):
