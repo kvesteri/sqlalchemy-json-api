@@ -302,7 +302,7 @@ class QueryBuilder(object):
             List of attributes to apply as an order by for the root model.
         :param limit:
             Applies an SQL LIMIT to the generated query.
-        :param limit:
+        :param offset:
             Applies an SQL OFFSET to the generated query.
         :param links:
             A dictionary of links to apply as top level links in the built
