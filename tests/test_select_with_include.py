@@ -60,6 +60,29 @@ class TestQueryBuilderSelectWithInclude(object):
                     ]
                 }
             ),
+            (
+                {
+                    'comments': [],
+                    'users': [],
+                    'memberships': []
+                },
+                ['author.memberships'],
+                {
+                    'included': [
+                        {'type': 'memberships', 'id': '1:1'},
+                        {'type': 'memberships', 'id': '2:1'},
+                        {'type': 'memberships', 'id': '3:1'},
+                        {'type': 'users', 'id': '1'},
+                        {'type': 'users', 'id': '2'}
+                    ],
+                    'data': [
+                        {'type': 'comments', 'id': '1'},
+                        {'type': 'comments', 'id': '2'},
+                        {'type': 'comments', 'id': '3'},
+                        {'type': 'comments', 'id': '4'}
+                    ]
+                }
+            ),
         )
     )
     def test_fetches_distinct_included_resources(
