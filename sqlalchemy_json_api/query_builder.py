@@ -848,13 +848,15 @@ class IncludeExpression(Expression):
             subalias,
             self.from_obj,
             correlate=False
-        ).distinct().as_scalar()
+        ).distinct()
 
         alias = sa.orm.aliased(cls)
         expr = self.build_included_json_object(alias, fields)
-        query = sa.select([
-            expr
-        ], from_obj=alias).where(alias.id.in_(subquery)).distinct()
+        query = sa.select(
+            [expr],
+            from_obj=alias
+        ).where(alias.id.in_(subquery)).distinct()
+
         if cls is self.model:
             query = query.where(
                 alias.id.notin_(
