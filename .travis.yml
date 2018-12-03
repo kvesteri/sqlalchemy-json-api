@@ -13,7 +13,9 @@ python:
 env:
   matrix:
     - SQLALCHEMY=SQLAlchemy>=1.0,<1.1
-    - SQLALCHEMY=SQLAlchemy>=1.1
+    - SQLALCHEMY=SQLAlchemy>=1.1,<1.2
+    - SQLALCHEMY=SQLAlchemy>=1.2,<1.3
+    - SQLALCHEMY=SQLAlchemy>=1.3
 
 install:
   - "pip install $SQLALCHEMY"
