@@ -840,16 +840,21 @@ class IncludeExpression(Expression):
         relationships = path_to_relationships(path, self.model)
 
         cls = relationships[-1].mapper.class_
-        alias = sa.orm.aliased(cls)
-        expr = self.build_included_json_object(alias, fields)
-        query = select_correlated_expression(
+        subalias = sa.orm.aliased(cls)
+        subquery = select_correlated_expression(
             self.model,
-            expr,
+            subalias.id,
             path,
-            alias,
+            subalias,
             self.from_obj,
             correlate=False
-        ).distinct()
+        ).distinct().as_scalar()
+
+        alias = sa.orm.aliased(cls)
+        expr = self.build_included_json_object(alias, fields)
+        query = sa.select([
+            expr
+        ], from_obj=alias).where(alias.id.in_(subquery)).distinct()
         if cls is self.model:
             query = query.where(
                 alias.id.notin_(
