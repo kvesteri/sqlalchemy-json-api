@@ -22,6 +22,7 @@ from .exc import (
     UnknownFieldKey,
     UnknownModel
 )
+from .hybrids import CompositeId
 from .utils import (
     adapt,
     chain_if,
@@ -848,7 +849,7 @@ class IncludeExpression(Expression):
             subalias,
             self.from_obj,
             correlate=False
-        ).distinct()
+        ).with_only_columns(split_if_composite(subalias.id)).distinct()
 
         alias = sa.orm.aliased(cls)
         expr = self.build_included_json_object(alias, fields)
@@ -861,9 +862,18 @@ class IncludeExpression(Expression):
             query = query.where(
                 alias.id.notin_(
                     sa.select(
-                        [get_attrs(self.from_obj).id],
+                        split_if_composite(get_attrs(self.from_obj).id),
                         from_obj=self.from_obj
                     )
                 )
             )
         return query
+
+
+def split_if_composite(column):
+    if (
+        hasattr(column.comparator, 'expression') and
+        isinstance(column.comparator.expression, CompositeId)
+    ):
+        return column.comparator.expression.keys
+    return [column]
