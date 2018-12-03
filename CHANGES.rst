@@ -4,6 +4,12 @@ Changelog
 Here you can see the full list of changes between each SQLAlchemy-JSON-API release.
 
 
+0.4.7 (2018-12-03)
+^^^^^^^^^^^^^^^^^^
+
+- Fixed slow includes (#17)
+
+
 0.4.6 (2018-01-02)
 ^^^^^^^^^^^^^^^^^^
 
